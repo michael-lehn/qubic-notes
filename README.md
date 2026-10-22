@@ -14,6 +14,7 @@ QubiC checkout or fetches sources.
 | `rtl/isa_tb`, `rtl/fproc_tb` | RTL checks of the ISA and of FPROC |
 | `qdsl/` | QD language prototype |
 | `rtl/qd_tb/` | runs QD-compiled machine code on the RTL (`run_demo.sh`) |
+| `rtl/multi_tb/` | 3 cores + FPROC + shot sequencer on RTL (`run_multi.py`) |
 | `rtl/meas_tb/` | measurement-feedback timing: processor + FPROC + rdlo element on RTL |
 | `patches/` | our extension to the QubiC compiler (runtime delay), applied to `.build/` by `setup.sh` |
 | `vendor/` | unmodified QubiC sources used and cited, with `MANIFEST.md` (origins, commits) |
@@ -85,6 +86,7 @@ static checks. See `qdsl/README.md`.
 python -m qdsl qdsl/examples/ex7_two_qubits.qd   # static schedule
 python -m qdsl.run_tests                          # 13 examples, 16 errors
 rtl/qd_tb/run_demo.sh                             # QD -> machine code -> RTL
+python rtl/multi_tb/run_multi.py                  # multi-core + shots on RTL
 # every QD snippet in the docs parses; programs compile to the listed words
 python tools/check_doc_dsl.py docs/reference.md qdsl/README.md
 ```

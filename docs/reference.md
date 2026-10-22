@@ -300,8 +300,8 @@ core). \[sim\]
 
 The unrolled T1 sweep needs 22 words for 5 points and grows with every point;
 the runtime version stays at 14. Not yet done: timing expressions such as
-`duration(...)` and deadlines, frequency-index and frame registers, multi-core
-RTL simulation, and reporting more than one error per run.
+`duration(...)` and deadlines, frequency-index and frame registers, and
+reporting more than one error per run.
 
 ## Compiler pipeline
 
@@ -734,6 +734,7 @@ Same RTL, same program, one compiler constant changed by one clock:
    and returns plausible data. `fproc_meas` declares a `reset` input but never
    uses it (`fproc_meas.sv:5`), so a too-early read returns the *previous
    shot's* bit, not garbage. Nothing on the host side can distinguish it.
+   Confirmed on the multi-core model across shots (Multi-core simulation).
 3. **Exact trigger matching makes the jump latency a hardware/software
    contract.** Timed instructions fire only when `qclk == cmd_time`
    (`proc.sv:138`). If the compiler underestimates any instruction latency on a
@@ -783,8 +784,8 @@ python rtl/meas_tb/run_checks.py                           # the margin table
 
 ### Limits of this verification
 
-- One core, one gateware configuration (ZCU216 `rdlo` parameters). Other builds
-  need their own run.
+- One gateware configuration (ZCU216 `rdlo` parameters). Other builds need their
+  own run. Several cores and shots are covered in Multi-core simulation.
 - The waveform memories are modelled with a 2-clock read. That affects the
   integrated *value*, not the timing of `accvalid`.
 - Clock-domain crossings and converter latencies outside the fabric are not
@@ -794,6 +795,50 @@ python rtl/meas_tb/run_checks.py                           # the margin table
 - The measured bit is the sign of the accumulated I component; the testbench
   drives a constant ADC value to force each outcome. Discrimination quality is
   out of scope.
+
+## Multi-core simulation
+
+Three cores that never synchronize at runtime stay aligned to the clock, take
+the same branch on a measurement made by another core, and shift together under
+a runtime delay. Two deliberately broken variants fail silently, as the static
+analysis predicts. \[sim\]
+
+`rtl/multi_tb/multicore_top.sv` instantiates three qubit cores as the gateware
+generator emits them: processor, instruction memory, and the qdrv, rdrv and rdlo
+signal generators with their waveform memories and glue. The cores share one
+`fproc_meas` and are driven by a copy of the shot state machine in
+`gateware/dsp/dsp.sv:180-280`: a shot ends when every core is done and every
+signal generator is idle, then all cores are reset and rerun. The programs are
+QD examples compiled by the patched toolchain.
+
+| Check | Program | Result |
+| --- | --- | --- |
+| Cross-core alignment | `mc_align.qd` | parallel X90s on cores 1 and 2 in the same clock (cycle 4227); `par` readout in the same clock (4405) |
+| Cross-core feedback | `mc_feedback.qd`, 3 shots, Q0 measures 1, 0, 1 | X90s on Q1 in shots 0 and 2 only; both cores request the result in the same clock (qclk 1372), with the same 1-clock margin as on one core |
+| Deterministic shots | same | join readout at qclk 1406 in every shot; every shot takes 2781 clocks |
+| Results survive the shot reset | same | `meas_reg` is 1, 2 (`0b10`), 3 (`0b11`) at the three requests (bit k = core k): Q1's bit from shot 0 is still latched in shot 1 |
+| Runtime delay on two cores | `mc_t1_runtime.qd` | readouts on both cores in the same clock every iteration; π-pulse to readout 16, 5016, 10016 clocks |
+
+| Broken variant | Result |
+| --- | --- |
+| `mc_feedback.qd` compiled with a 62-clock hold; Q0 measures 1, then 0 | X90s play in shot 1 instead of shot 0: each shot acts on the previous shot's result, and shot 0 on the power-on value. Execution completes normally. |
+| `mc_t1_runtime.qd` with `inc_qclk` scoped to Q0's core only | readout skew Q0 − Q1 grows 0, 5000, 15000 clocks, the delays core 1 never applied. No error, no hang. |
+
+Two consequences. First, the end of a shot is a join over all cores and all
+signal generators, including the `rdlo` accumulator, so the last measurement of
+a shot is always latched before the next shot starts. Combined with the
+`fproc_meas` register that is never reset, a too-early read is guaranteed to
+return a plausible result from the previous shot. Second, a runtime delay is
+only sound when every core applies it; QD enforces this by scoping `delay(tau);`
+to all qubits of the program. \[sim\]\[interp\]
+
+```sh
+source env.sh && python rtl/multi_tb/run_multi.py
+```
+
+Limits: three cores (the ZCU216 build has more), one board, constant ADC samples
+per shot; the DC and other auxiliary signal generators are not modelled, so the
+shot length counts only qdrv, rdrv and rdlo.
 
 ## Open questions and corrections
 

@@ -98,6 +98,4 @@ RTL:
 
 - timing expressions (`duration(...)`), deadlines
 - frequency-index registers, register `bind_phase` frames
-- multi-core RTL simulation (the demo runs one core; cores only share the start
-  of the shot)
 - collecting several errors per run
