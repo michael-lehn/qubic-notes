@@ -1,0 +1,98 @@
+{
+    "program": {
+        "block_0": [
+            {
+                "name": "declare",
+                "var": "fpread",
+                "scope": [
+                    "Q0.qdrv",
+                    "Q0.rdlo",
+                    "Q0.rdrv"
+                ],
+                "dtype": "int"
+            },
+            {
+                "name": "declare",
+                "var": "junk",
+                "scope": [
+                    "Q0.qdrv",
+                    "Q0.rdlo",
+                    "Q0.rdrv"
+                ],
+                "dtype": "int"
+            },
+            {
+                "name": "read_fproc",
+                "func_id": 0,
+                "var": "fpread",
+                "scope": [
+                    "Q0.qdrv",
+                    "Q0.rdlo",
+                    "Q0.rdrv"
+                ]
+            },
+            {
+                "name": "alu",
+                "lhs": "fpread",
+                "rhs": "junk",
+                "op": "add",
+                "out": "junk",
+                "scope": [
+                    "Q0.qdrv",
+                    "Q0.rdlo",
+                    "Q0.rdrv"
+                ]
+            },
+            {
+                "name": "read_fproc",
+                "func_id": 0,
+                "var": "fpread",
+                "scope": [
+                    "Q0.qdrv",
+                    "Q0.rdlo",
+                    "Q0.rdrv"
+                ]
+            },
+            {
+                "name": "alu",
+                "lhs": 14,
+                "rhs": "fpread",
+                "op": "add",
+                "out": "fpread",
+                "scope": [
+                    "Q0.qdrv",
+                    "Q0.rdlo",
+                    "Q0.rdrv"
+                ]
+            }
+        ]
+    },
+    "vars": {
+        "fpread": {
+            "scope": [
+                "Q0.qdrv",
+                "Q0.rdlo",
+                "Q0.rdrv"
+            ],
+            "dtype": "int"
+        },
+        "junk": {
+            "scope": [
+                "Q0.qdrv",
+                "Q0.rdlo",
+                "Q0.rdrv"
+            ],
+            "dtype": "int"
+        }
+    },
+    "scope": {
+        "block_0": [
+            "Q0.qdrv",
+            "Q0.rdlo",
+            "Q0.rdrv"
+        ]
+    },
+    "control_flow_graph": {
+        "block_0": []
+    }
+}

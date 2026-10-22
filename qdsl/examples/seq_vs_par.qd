@@ -1,0 +1,10 @@
+// Same three pulses, sequential vs parallel.
+qubit Q0, Q1;
+P :: cos_edge_square(0.25);
+
+pulse(Q0.qdrv, amp = 0.5, width = 32 ns, env = P);   // t = 5
+pulse(Q1.qdrv, amp = 0.5, width = 32 ns, env = P);   // waits for Q0: t = 21
+par {
+    { pulse(Q0.qdrv, amp = 0.5, width = 32 ns, env = P); }
+    { pulse(Q1.qdrv, amp = 0.5, width = 32 ns, env = P); }
+}                                                    // both at t = 37

@@ -1,0 +1,12 @@
+// T1 sweep: delays must be constants, so the sweep is unrolled at compile time.
+qubit Q0;
+REP :: 500 us;
+
+pi_pulse :: proc(q: qubit) { X90(q); X90(q); }
+
+#unroll for tau in 0 us ..< 50 us step 10 us {
+    pi_pulse(Q0);
+    delay(tau);
+    measure(Q0);
+    delay(REP);
+}

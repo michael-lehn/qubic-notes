@@ -1,0 +1,46 @@
+site_name: QubiC Language Reference
+
+theme:
+  name: "material"
+  palette:
+    scheme: slate
+
+plugins: 
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
+  - search
+
+markdown_extensions:
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+  - Home: index.md
+    #  - Examples:
+    #    - Start: start.md
+  - Language Reference:
+    - Representing Programs: language_ref/representation.md
+    - Pulse Instructions: language_ref/pulse_instructions.md
+    - Gate Instructions: language_ref/gate_instructions.md
+    - Scoping: language_ref/scope.md
+    - Virtual-Z Instructions and Phase Tracking: language_ref/virtualz_instructions.md
+    - Variables: language_ref/variables.md
+    - Declaring Frequencies: language_ref/frequency_declaration.md
+    - Control Flow: language_ref/control_flow.md
+    - Function Processor: language_ref/function_processor.md
+    - Timing Control and Scheduling: language_ref/timing_control.md
+      #- Distributed Processor Assembly
+  - Compiler API Reference:
+    - distproc.compiler: api/compiler.md
+    - distproc.ir:
+      - distproc.ir.ir: api/ir.md
+      - distproc.ir.passes: api/ir_passes.md
+    - distproc.hwconfig: api/hwconfig.md
+

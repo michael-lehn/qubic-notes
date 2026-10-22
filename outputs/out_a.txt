@@ -1,0 +1,114 @@
+WARNING:root:failed to import ipdb
+WARNING:distproc.ir.passes:Z-phase resolution inside loops not supported, be careful!
+warning: could not import ipdb
+====================================================================================================
+Ex1: declare int x; x = 42
+====================================================================================================
+--- IR after all passes (basic blocks, scheduled) ---
+  [block_0] start=5 dur=4 succ=[]
+      {'name': 'declare', 'var': 'x', 'scope': {'Q0.rdlo', 'Q0.qdrv', 'Q0.rdrv'}, 'dtype': 'int'}
+      {'name': 'set_var', 'var': 'x', 'value': 42, 'scope': {'Q0.rdlo', 'Q0.qdrv', 'Q0.rdrv'}}
+--- Distributed-processor assembly (per core) ---
+  core ('Q0.qdrv', 'Q0.rdrv', 'Q0.rdlo'):
+      phase_reset  
+      declare_reg  name=x, dtype=int
+      reg_alu      in0=42, in1_reg=x, alu_op=id0, out_reg=x
+      done_stb     
+--- Machine code (128-bit words, little-endian in BRAM) ---
+  :qubit_command0:
+      @0   b0000000000000000000000000000000  pulse_reset     
+      @1   100000002a0000000000000000000000  reg_alu_i        alu=id0 in0=#42 in1=r0 out=r0
+      @2   a0000000000000000000000000000000  done            
+  :qubit_qdrv_env0: 0 bytes
+  :qubit_qdrv_freq0: 0 bytes
+  :qubit_rdlo_env0: 0 bytes
+  :qubit_rdlo_freq0: 0 bytes
+  :qubit_rdrv_env0: 0 bytes
+  :qubit_rdrv_freq0: 0 bytes
+  result channels: {'Q0.rdlo': ('qubit_accbuf0', 1)}
+
+====================================================================================================
+Ex2: c = a + b
+====================================================================================================
+--- IR after all passes (basic blocks, scheduled) ---
+  [block_0] start=5 dur=12 succ=[]
+      {'name': 'declare', 'var': 'a', 'scope': {'Q0.rdlo', 'Q0.qdrv', 'Q0.rdrv'}, 'dtype': 'int'}
+      {'name': 'declare', 'var': 'b', 'scope': {'Q0.rdlo', 'Q0.qdrv', 'Q0.rdrv'}, 'dtype': 'int'}
+      {'name': 'declare', 'var': 'c', 'scope': {'Q0.rdlo', 'Q0.qdrv', 'Q0.rdrv'}, 'dtype': 'int'}
+      {'name': 'set_var', 'var': 'a', 'value': 3, 'scope': {'Q0.rdlo', 'Q0.qdrv', 'Q0.rdrv'}}
+      {'name': 'set_var', 'var': 'b', 'value': 4, 'scope': {'Q0.rdlo', 'Q0.qdrv', 'Q0.rdrv'}}
+      {'name': 'alu', 'lhs': 'a', 'rhs': 'b', 'op': 'add', 'out': 'c', 'scope': {'Q0.rdlo', 'Q0.qdrv', 'Q0.rdrv'}}
+--- Distributed-processor assembly (per core) ---
+  core ('Q0.qdrv', 'Q0.rdrv', 'Q0.rdlo'):
+      phase_reset  
+      declare_reg  name=a, dtype=int
+      declare_reg  name=b, dtype=int
+      declare_reg  name=c, dtype=int
+      reg_alu      in0=3, in1_reg=a, alu_op=id0, out_reg=a
+      reg_alu      in0=4, in1_reg=b, alu_op=id0, out_reg=b
+      reg_alu      in0=a, in1_reg=b, alu_op=add, out_reg=c
+      done_stb     
+--- Machine code (128-bit words, little-endian in BRAM) ---
+  :qubit_command0:
+      @0   b0000000000000000000000000000000  pulse_reset     
+      @1   10000000030000000000000000000000  reg_alu_i        alu=id0 in0=#3 in1=r0 out=r0
+      @2   10000000041100000000000000000000  reg_alu_i        alu=id0 in0=#4 in1=r1 out=r1
+      @3   19000000001200000000000000000000  reg_alu          alu=add in0=r0 in1=r1 out=r2
+      @4   a0000000000000000000000000000000  done            
+  :qubit_qdrv_env0: 0 bytes
+  :qubit_qdrv_freq0: 0 bytes
+  :qubit_rdlo_env0: 0 bytes
+  :qubit_rdlo_freq0: 0 bytes
+  :qubit_rdrv_env0: 0 bytes
+  :qubit_rdrv_freq0: 0 bytes
+  result channels: {'Q0.rdlo': ('qubit_accbuf0', 1)}
+
+====================================================================================================
+Ex0: user amplitude sweep (verbatim IR from question)
+====================================================================================================
+--- IR after all passes (basic blocks, scheduled) ---
+  [block_0] start=5 dur=4 succ=['loop_0_loopctrl']
+      {'name': 'declare', 'var': 'amp', 'scope': {'Q0.rdlo', 'Q0.qdrv', 'Q0.rdrv'}, 'dtype': 'amp'}
+      {'name': 'set_var', 'var': 'amp', 'value': 0.1, 'scope': {'Q0.rdlo', 'Q0.qdrv', 'Q0.rdrv'}}
+  [loop_0_loopctrl] start=9 dur=0 succ=['loop_0_loopctrl_ctrl']
+      {'name': 'jump_label', 'label': 'loop_0_loopctrl', 'scope': {'Q0.rdlo', 'Q0.qdrv', 'Q0.rdrv'}}
+      {'name': 'pulse', 'freq': 4944383311, 'twidth': 2.4e-08, 'dest': 'Q0.qdrv', 'phase': 0, 'amp': 'amp', 'env': {'env_func': 'cos_edge_square', 'paradict': {'ramp_fraction': 0.25}}, 'start_time': 250009}
+      {'name': 'pulse', 'freq': 6554327471.963202, 'twidth': 2e-06, 'dest': 'Q0.rdrv', 'phase': 0.0, 'amp': 0.01967670502549965, 'env': [{'env_func': 'cos_edge_square', 'paradict': {'ramp_fraction': 0.25, 'twidth': 2e-06}}], 'tag': 'Q0read', 'start_time': 250021}
+      {'name': 'pulse', 'freq': 6554327471.963202, 'twidth': 2e-06, 'dest': 'Q0.rdlo', 'phase': 1.4806632895920675, 'amp': 1.0, 'env': [{'env_func': 'square', 'paradict': {'phase': 0.0, 'amplitude': 1.0, 'twidth': 2e-06}}], 'tag': 'Q0read', 'start_time': 250321}
+      {'name': 'alu', 'lhs': 0.1, 'rhs': 'amp', 'op': 'add', 'out': 'amp', 'scope': {'Q0.rdlo', 'Q0.qdrv', 'Q0.rdrv'}}
+      {'name': 'loop_end', 'loop_label': 'loop_0_loopctrl', 'scope': {'Q0.rdlo', 'Q0.qdrv', 'Q0.rdrv'}}
+  [loop_0_loopctrl_ctrl] start=9 dur=6 succ=[]
+      {'name': 'jump_cond', 'cond_lhs': 1.0, 'alu_cond': 'ge', 'cond_rhs': 'amp', 'scope': {'Q0.rdlo', 'Q0.qdrv', 'Q0.rdrv'}, 'jump_label': 'loop_0_loopctrl', 'jump_type': 'loopctrl'}
+  loops: {'loop_0_loopctrl': {'scope': {'Q0.rdlo', 'Q0.qdrv', 'Q0.rdrv'}, 'start_time': 9, 'delta_t': 251312}}
+--- Distributed-processor assembly (per core) ---
+  core ('Q0.qdrv', 'Q0.rdrv', 'Q0.rdlo'):
+      phase_reset  
+      declare_reg  name=amp, dtype=amp
+      reg_alu      in0=0.1, in1_reg=amp, alu_op=id0, out_reg=amp
+      jump_label   dest_label=loop_0_loopctrl
+      pulse        freq=4944383311, phase=0, amp=amp, env=cos_edge_square(ramp_fraction=0.25, twidth=2.4e-08), start_time=250009, dest=Q0.qdrv
+      pulse        freq=6.55433e+09, phase=0, amp=0.01967670502549965, env=cos_edge_square(ramp_fraction=0.25, twidth=2e-06), start_time=250021, dest=Q0.rdrv, tag=Q0read
+      pulse        freq=6.55433e+09, phase=1.48066, amp=1.0, env=square(phase=0, amplitude=1, twidth=2e-06), start_time=250321, dest=Q0.rdlo, tag=Q0read
+      reg_alu      in0=0.1, in1_reg=amp, alu_op=add, out_reg=amp
+      inc_qclk     in0=-251312
+      jump_cond    in0=1.0, alu_op=ge, jump_label=loop_0_loopctrl, in1_reg=amp
+      done_stb     
+--- Machine code (128-bit words, little-endian in BRAM) ---
+  :qubit_command0:
+      @0   b0000000000000000000000000000000  pulse_reset     
+      @1   1000000ccc0000000000000000000000  reg_alu_i        alu=id0 in0=#3276 in1=r0 out=r0
+      @2   90080300020000400c000200007a1320  pulse_write_trig t=250009 cfg=0 amp=r0 freq=0 phase=0 env_word=49152
+      @3   9008fa0002000040080a1220007a14a0  pulse_write_trig t=250021 cfg=1 amp=644 freq=0 phase=0 env_word=4096000
+      @4   9008fa00023c53c009fffec0007a3a20  pulse_write_trig t=250321 cfg=6 amp=32767 freq=0 phase=30887 env_word=4096000
+      @5   1100000ccc0000000000000000000000  reg_alu_i        alu=add in0=#3276 in1=r0 out=r0
+      @6   61fffc2a500000000000000000000000  inc_qclk_i       alu=add in0=#-251312
+      @7   3500007fff0000200000000000000000  jump_cond_i      alu=ge in0=#32767 in1=r0 ->@2
+      @8   a0000000000000000000000000000000  done            
+  :qubit_qdrv_env0: 192 bytes
+  :qubit_qdrv_freq0: 64 bytes
+  :qubit_rdlo_env0: 4000 bytes
+  :qubit_rdlo_freq0: 16 bytes
+  :qubit_rdrv_env0: 4000 bytes
+  :qubit_rdrv_freq0: 64 bytes
+  result channels: {'Q0.rdlo': ('qubit_accbuf0', 1)}
+

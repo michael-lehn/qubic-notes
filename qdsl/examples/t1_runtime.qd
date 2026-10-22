@@ -1,0 +1,15 @@
+// T1 sweep with a runtime delay: one loop instead of an unrolled program.
+qubit Q0;
+REP :: 100 us;
+
+tau : time = 0 us;              // register, in clock ticks
+n := 0;
+
+do {
+    X90(Q0); X90(Q0);           // pi pulse
+    delay(tau);                 // runtime delay: register-sourced inc_qclk
+    measure(Q0);
+    delay(REP);
+    tau += 10 us;
+    n += 1;
+} while n < 5;

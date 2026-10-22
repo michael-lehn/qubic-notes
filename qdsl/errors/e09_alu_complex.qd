@@ -1,0 +1,5 @@
+// expect: too complex for the processor ALU
+qubit Q0;
+a : int = 1;
+b : int = 2;
+c : int = a + b + 1;

@@ -1,0 +1,63 @@
+# this is an example for the ZCU216_8_2 build
+cores:
+  qubit: 14
+
+# these are TODOs:
+state_disc: y-axis # y-axis or ml
+rc: False
+pce: False
+
+dac_samples_per_clk: 16
+dac_nbits: 16 #per sample
+
+adc_samples_per_clk: 4
+adc_nbits: 16 #per sample
+
+dac_outputs: 
+  # these can be generate blocks representing assignments to dac channels
+  #   expr: <dac_ind> <= <chan_expr>
+  #
+  #  range is [) like python slices
+  - gen:
+      var: i
+      range: 0, 14
+      expr: i <= qubit.qdrv[i]
+
+  - sum:
+      dac_ind: 14
+      range: 0, 7
+      sig_gens: qubit.rdrv
+
+  - sum:
+      dac_ind: 15
+      range: 7, 14
+      sig_gens: qubit.rdrv
+
+adc_mix_inputs:
+  - gen:
+      var: i
+      range: 0, 8
+      expr: qubit.rdlo[i] <= 0
+
+core_defs:
+  qubit:
+    instr_mem_depth: 8192
+    sig_gens:
+      qdrv:
+         type: rf
+         interp_ratio: 4
+         env_mem_depth: 8192 # x32 bit
+         freq_mem_depth: 8192
+         delay: 2 # extra delay before output
+      rdrv:
+        type: rf
+        interp_ratio: 16
+        env_mem_depth: 4096 # x32 bit
+        freq_mem_depth: 8192
+      rdlo:
+        type: rf_mix
+        interp_ratio: 4
+        env_mem_depth: 4096
+        freq_mem_depth: 8192
+        acc_mem_depth: 1024 # x64
+

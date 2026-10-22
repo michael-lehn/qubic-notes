@@ -1,0 +1,81 @@
+diff -ru --ex a/distproc/compiler.py b/distproc/compiler.py
+--- a/distproc/compiler.py	2026-10-22 19:47:41
++++ b/distproc/compiler.py	2026-10-22 21:22:40
+@@ -276,6 +276,10 @@
+                 for core in self._core_scoper.get_groups_bydest(instr.scope):
+                     asm_progs[core].append({'op': 'jump_i', 'jump_label': instr.jump_label})
+ 
++            elif instr.name == 'inc_qclk':
++                for core in self._core_scoper.get_groups_bydest(instr.scope):
++                    asm_progs[core].append({'op': 'inc_qclk', 'in0': instr.var})
++
+             elif instr.name == 'loop_end':
+                 for core in self._core_scoper.get_groups_bydest(instr.scope):
+                     asm_progs[core].append({'op': 'inc_qclk', 'in0': -self.ir_prog.loops[instr.loop_label].delta_t})
+diff -ru --ex a/distproc/ir/instructions.py b/distproc/ir/instructions.py
+--- a/distproc/ir/instructions.py	2026-10-22 19:47:41
++++ b/distproc/ir/instructions.py	2026-10-22 21:22:40
+@@ -527,6 +527,21 @@
+         return instr_dict
+ 
+ @define
++class IncQclk:
++    """
++    Add the value of register `var` (in clocks) to qclk on every core in scope.
++    A negative value makes every later timestamp on those cores fire that much
++    later, i.e. a runtime delay. All cores that must stay aligned have to be
++    in scope. Statically it is scheduled as a barrier plus one ALU instruction.
++    """
++    var: str
++    scope: List[str] | Set[str] | Tuple[str] = field(default=None, converter=_normalize_scope)
++    name: str = field(default='inc_qclk')
++
++    def to_dict(self) -> Dict:
++        return {'name': self.name, 'var': self.var, 'scope': self.scope}
++
++@define
+ class Halt:
+     scope: List[str] | Set[str] | Tuple[str] = field(default=None, converter=_normalize_scope)
+     name: str = field(default='halt')
+diff -ru --ex a/distproc/ir/passes.py b/distproc/ir/passes.py
+--- a/distproc/ir/passes.py	2026-10-22 19:47:41
++++ b/distproc/ir/passes.py	2026-10-22 21:22:40
+@@ -1054,6 +1054,10 @@
+                 cur_t[instr.dest] = instr.start_time + self._get_pulse_nclks(instr.twidth)
+                 dest_last_t[instr.dest] = cur_t[instr.dest]
+ 
++            elif instr.name == 'inc_qclk':
++                for grp in self._core_scoper.get_groups_bydest(instr.scope):
++                    last_instr_end_t[grp] += self._fpga_config.alu_instr_clks
++
+             elif instr.name == 'alu' or instr.name == 'set_var':
+                 for grp in self._core_scoper.get_groups_bydest(instr.scope):
+                     last_instr_end_t[grp] += self._fpga_config.alu_instr_clks
+@@ -1144,6 +1148,16 @@
+                 instructions.pop(i)
+                 i -= 1
+ 
++            elif instr.name == 'inc_qclk':
++                # runtime qclk shift: statically a barrier over its scope + one ALU instruction
++                groups = self._core_scoper.get_groups_bydest(instr.scope)
++                max_t = max(max(cur_t[dest] for dest in instr.scope),
++                            max(last_instr_end_t[grp] for grp in groups))
++                for dest in instr.scope:
++                    cur_t[dest] = max_t
++                for grp in groups:
++                    last_instr_end_t[grp] = max(last_instr_end_t[grp], max_t) + self._fpga_config.alu_instr_clks
++
+             elif instr.name == 'alu' or instr.name == 'set_var':
+                 for grp in self._core_scoper.get_groups_bydest(instr.scope):
+                     last_instr_end_t[grp] += self._fpga_config.alu_instr_clks
+@@ -1282,6 +1296,10 @@
+ 
+                 last_instr_end_t[self._core_scoper.proc_groupings[instr.dest]] = instr.start_time \
+                         + self._fpga_config.pulse_load_clks
++
++            elif instr.name == 'inc_qclk':
++                for grp in self._core_scoper.get_groups_bydest(instr.scope):
++                    last_instr_end_t[grp] += self._fpga_config.alu_instr_clks
+ 
+             elif instr.name == 'alu' or instr.name == 'set_var':
+                 for grp in self._core_scoper.get_groups_bydest(instr.scope):

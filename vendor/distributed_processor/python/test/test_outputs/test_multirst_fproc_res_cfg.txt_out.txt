@@ -1,0 +1,142 @@
+{
+    "('Q0.qdrv', 'Q0.rdrv', 'Q0.rdlo')": [
+        {
+            "op": "phase_reset"
+        },
+        {
+            "amp": 0.12694050581989672,
+            "dest": "Q0.qdrv",
+            "env": {
+                "env_func": "DRAG",
+                "paradict": {
+                    "alpha": -0.2624037641352016,
+                    "delta": -268000000.0,
+                    "sigmas": 3,
+                    "twidth": 3.2e-08
+                }
+            },
+            "freq": 4428998888.444014,
+            "op": "pulse",
+            "phase": 0.0,
+            "start_time": 5,
+            "tag": "Q0X90"
+        },
+        {
+            "end_time": 69,
+            "op": "idle"
+        },
+        {
+            "alu_op": "eq",
+            "func_id": [
+                "Q0.rdlo",
+                "core_ind"
+            ],
+            "in0": 1,
+            "jump_label": "end_0",
+            "op": "jump_fproc"
+        },
+        {
+            "dest_label": "false_0",
+            "op": "jump_label"
+        },
+        {
+            "amp": 0.12694050581989672,
+            "dest": "Q0.qdrv",
+            "env": {
+                "env_func": "DRAG",
+                "paradict": {
+                    "alpha": -0.2624037641352016,
+                    "delta": -268000000.0,
+                    "sigmas": 3,
+                    "twidth": 3.2e-08
+                }
+            },
+            "freq": 4428998888.444014,
+            "op": "pulse",
+            "phase": 0.0,
+            "start_time": 80,
+            "tag": "Q0X90"
+        },
+        {
+            "jump_label": "end_0",
+            "op": "jump_i"
+        },
+        {
+            "dest_label": "end_0",
+            "op": "jump_label"
+        },
+        {
+            "op": "done_stb"
+        }
+    ],
+    "('Q1.qdrv', 'Q1.rdrv', 'Q1.rdlo')": [
+        {
+            "op": "phase_reset"
+        },
+        {
+            "end_time": 69,
+            "op": "idle"
+        },
+        {
+            "alu_op": "eq",
+            "func_id": [
+                "Q1.rdlo",
+                "core_ind"
+            ],
+            "in0": 1,
+            "jump_label": "end_1",
+            "op": "jump_fproc"
+        },
+        {
+            "dest_label": "false_1",
+            "op": "jump_label"
+        },
+        {
+            "amp": 0.6045431013154825,
+            "dest": "Q1.qdrv",
+            "env": {
+                "env_func": "DRAG",
+                "paradict": {
+                    "alpha": -0.319135498526078,
+                    "delta": -268000000.0,
+                    "sigmas": 3,
+                    "twidth": 1.6e-08
+                }
+            },
+            "freq": 4706273130.810752,
+            "op": "pulse",
+            "phase": 0.0,
+            "start_time": 80,
+            "tag": "Q1X90"
+        },
+        {
+            "jump_label": "end_1",
+            "op": "jump_i"
+        },
+        {
+            "dest_label": "end_1",
+            "op": "jump_label"
+        },
+        {
+            "amp": 0.6045431013154825,
+            "dest": "Q1.qdrv",
+            "env": {
+                "env_func": "DRAG",
+                "paradict": {
+                    "alpha": -0.319135498526078,
+                    "delta": -268000000.0,
+                    "sigmas": 3,
+                    "twidth": 1.6e-08
+                }
+            },
+            "freq": 4706273130.810752,
+            "op": "pulse",
+            "phase": 0.0,
+            "start_time": 89,
+            "tag": "Q1X90"
+        },
+        {
+            "op": "done_stb"
+        }
+    ]
+}

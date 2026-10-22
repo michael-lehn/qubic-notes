@@ -1,0 +1,11 @@
+// ';' is strictly sequential; parallelism is written down.
+qubit Q1, Q2;
+par {
+    { X90(Q1); }
+    { X90(Q2); }
+}
+CNOT(Q2, Q1);
+par {                          // aligned readout, no skew
+    { measure(Q1); }
+    { measure(Q2); }
+}

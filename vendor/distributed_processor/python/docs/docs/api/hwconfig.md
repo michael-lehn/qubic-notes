@@ -1,0 +1,1 @@
+::: distproc.hwconfig

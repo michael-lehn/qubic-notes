@@ -1,0 +1,14 @@
+// The original amplitude sweep, in QD.
+qubit Q0;
+
+WAIT : time : 500 us;          // constant: baked into the instruction stream
+STEP :: 0.1;
+a    : amp = 0.1;              // register on Q0's core
+
+do {
+    delay(WAIT);
+    pulse(Q0.qdrv, freq = 4.944383311 GHz, amp = a, width = 24 ns,
+          env = cos_edge_square(ramp_fraction = 0.25));
+    measure(Q0);
+    a += STEP;
+} while a < 1.0;               // post-test loop, strict compare: exactly the hardware's

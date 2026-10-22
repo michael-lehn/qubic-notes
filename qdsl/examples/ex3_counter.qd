@@ -1,0 +1,4 @@
+qubit Q0;
+for i in 0..<5 {               // i becomes an int register
+    X90(Q0);
+}

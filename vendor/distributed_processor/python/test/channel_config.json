@@ -1,0 +1,78 @@
+{
+    "fpga_clk_freq": 500e6,
+
+    "Q0.qdrv":{
+        "core_ind": 0,
+        "elem_ind": 0,
+        "elem_type": "rf",
+        "elem_params":{
+            "samples_per_clk": 16,
+            "interp_ratio": 1
+        },
+        "env_mem_name": "qdrvenv{core_ind}",
+        "freq_mem_name": "qdrvfreq{core_ind}"
+    },
+
+    "Q0.rdrv":{
+        "core_ind": 0,
+        "elem_ind": 1,
+        "elem_type": "rf",
+        "elem_params":{
+            "samples_per_clk": 16,
+            "interp_ratio": 16
+        },
+        "env_mem_name": "rdrvenv{core_ind}",
+        "freq_mem_name": "rdrvfreq{core_ind}"
+    },
+
+    "Q0.rdlo":{
+        "core_ind": 0,
+        "elem_ind": 2,
+        "elem_type": "rf",
+        "elem_params":{
+            "samples_per_clk": 4,
+            "interp_ratio": 4
+        },
+        "env_mem_name": "rdloenv{core_ind}",
+        "freq_mem_name": "rdlofreq{core_ind}",
+        "acc_mem_name": "accbuf{core_ind}"
+    },
+
+    "Q1.qdrv":{
+        "core_ind": 1,
+        "elem_ind": 0,
+        "elem_type": "rf",
+        "elem_params":{
+            "samples_per_clk": 16,
+            "interp_ratio": 1
+        },
+        "env_mem_name": "qdrvenv{core_ind}",
+        "freq_mem_name": "qdrvfreq{core_ind}"
+    },
+
+    "Q1.rdrv":{
+        "core_ind": 1,
+        "elem_ind": 1,
+        "elem_type": "rf",
+        "elem_params":{
+            "samples_per_clk": 16,
+            "interp_ratio": 16
+        },
+        "env_mem_name": "rdrvenv{core_ind}",
+        "freq_mem_name": "rdrvfreq{core_ind}"
+    },
+
+    "Q1.rdlo":{
+        "core_ind": 1,
+        "elem_ind": 2,
+        "elem_type": "rf",
+        "elem_params":{
+            "samples_per_clk": 4,
+            "interp_ratio": 4
+        },
+        "env_mem_name": "rdloenv{core_ind}",
+        "freq_mem_name": "rdlofreq{core_ind}",
+        "acc_mem_name": "accbuf{core_ind}"
+    }
+
+}

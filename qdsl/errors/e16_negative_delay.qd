@@ -1,0 +1,6 @@
+// expect: runtime delay 'tau' may become negative
+qubit Q0;
+tau : time = 10 us;
+tau -= 20 us;
+delay(tau);
+X90(Q0);

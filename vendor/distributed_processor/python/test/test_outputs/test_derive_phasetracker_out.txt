@@ -1,0 +1,107 @@
+{
+    "program": {
+        "block_0": [
+            {
+                "name": "pulse",
+                "freq": 4428998888.444014,
+                "twidth": 3.2e-08,
+                "dest": "Q0.qdrv",
+                "phase": 0.0,
+                "amp": 0.12694050581989672,
+                "env": [
+                    {
+                        "env_func": "DRAG",
+                        "paradict": {
+                            "alpha": -0.2624037641352016,
+                            "sigmas": 3,
+                            "delta": -268000000.0
+                        }
+                    }
+                ],
+                "tag": "Q0X90",
+                "start_time": 5
+            },
+            {
+                "name": "pulse",
+                "freq": 4935716980.507155,
+                "twidth": 1.6e-08,
+                "dest": "Q2.qdrv",
+                "phase": -6.283185307179586,
+                "amp": 0.8375304384065124,
+                "env": [
+                    {
+                        "env_func": "DRAG",
+                        "paradict": {
+                            "alpha": 0.10453159804308045,
+                            "sigmas": 3,
+                            "delta": -268000000.0
+                        }
+                    }
+                ],
+                "tag": "Q2X90",
+                "start_time": 5
+            },
+            {
+                "name": "pulse",
+                "freq": 4706273130.810752,
+                "twidth": 1.6e-08,
+                "dest": "Q1.qdrv",
+                "phase": 3.141592653589793,
+                "amp": 0.6045431013154825,
+                "env": [
+                    {
+                        "env_func": "DRAG",
+                        "paradict": {
+                            "alpha": -0.319135498526078,
+                            "sigmas": 3,
+                            "delta": -268000000.0
+                        }
+                    }
+                ],
+                "tag": "Q1X90",
+                "start_time": 5
+            },
+            {
+                "name": "pulse",
+                "freq": 4428998888.444014,
+                "twidth": 3.2e-08,
+                "dest": "Q0.qdrv",
+                "phase": 0.0,
+                "amp": 0.12694050581989672,
+                "env": [
+                    {
+                        "env_func": "DRAG",
+                        "paradict": {
+                            "alpha": -0.2624037641352016,
+                            "sigmas": 3,
+                            "delta": -268000000.0
+                        }
+                    }
+                ],
+                "tag": "Q0X90",
+                "start_time": 21
+            }
+        ]
+    },
+    "freqs": {
+        "Q0.freq": 4428998888.444014,
+        "Q2.freq": 4935716980.507155,
+        "Q1.freq": 4706273130.810752
+    },
+    "scope": {
+        "block_0": [
+            "Q0.qdrv",
+            "Q0.rdlo",
+            "Q0.rdrv",
+            "Q1.qdrv",
+            "Q1.rdlo",
+            "Q1.rdrv",
+            "Q2.qdrv",
+            "Q2.rdlo",
+            "Q2.rdrv"
+        ]
+    },
+    "control_flow_graph": {
+        "block_0": []
+    }
+}

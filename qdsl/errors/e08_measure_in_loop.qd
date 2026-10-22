@@ -1,0 +1,3 @@
+// expect: a loop condition cannot read a measurement directly
+qubit Q0;
+do { X90(Q0); } while measure(Q0) == 1;

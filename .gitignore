@@ -1,0 +1,11 @@
+.venv/
+.build/
+__pycache__/
+sim_build/
+results.xml
+*.vcd
+*.fst
+.DS_Store
+build/
+*.log
+!outputs/*.log

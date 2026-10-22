@@ -1,0 +1,96 @@
+// QD: an Odin-flavoured control language for QubiC.
+//
+// Declarations (Pascal/Odin style, ':' reads "of type"):
+//   qubit Q0, Q1;
+//   WAIT : time : 500 us;      constant  (compile time)
+//   WAIT :: 500 us;            constant, type inferred
+//   a : amp = 0.1;             variable  (register on the cores that use it)
+//   n := 0;                    variable, type inferred (int)
+//   name :: proc(q: qubit, t: time) { ... }    always inlined
+//
+// Statements are separated by ';' and run strictly one after another.
+// Parallelism is explicit: par { {...} {...} }.
+
+start: item*
+
+?item: qubit_decl
+     | const_decl
+     | var_decl
+     | proc_decl
+     | stmt
+
+qubit_decl: "qubit" NAME ("," NAME)* ";"
+
+const_decl: NAME ":" type ":" expr ";"       -> const_typed
+          | NAME "::" expr ";"               -> const_inferred
+
+var_decl: NAME ":" type "=" expr ";"         -> var_init
+        | NAME ":" type ";"                  -> var_zero
+        | NAME ":=" expr ";"                 -> var_inferred
+
+proc_decl: NAME "::" "proc" "(" [param ("," param)*] ")" block
+param: NAME ":" type
+
+type: TYPE
+TYPE: "int" | "amp" | "phase" | "time" | "freq" | "qubit"
+
+?stmt: assign
+     | call_stmt
+     | if_stmt
+     | do_stmt
+     | for_cond
+     | for_range
+     | unroll
+     | par
+     | block
+
+assign: NAME ASSIGN_OP expr ";"
+ASSIGN_OP: "=" | "+=" | "-="
+
+call_stmt: call ";"
+
+if_stmt: "if" cond block ["else" (block | if_stmt)]
+do_stmt: "do" block "while" cond ";"
+for_cond: "for" cond block
+for_range: "for" NAME "in" expr "..<" expr block
+unroll: "#unroll" "for" NAME "in" unroll_seq block
+unroll_seq: "[" expr ("," expr)* ","? "]"     -> unroll_list
+          | expr "..<" expr ["step" expr]      -> unroll_range
+par: "par" "{" block+ "}"
+block: "{" item* "}"
+
+cond: expr CMP expr
+CMP: "==" | "!=" | "<=" | ">=" | "<" | ">"
+
+?expr: sum
+?sum: product
+    | sum ADD_OP product                     -> binop
+?product: unary
+        | product MUL_OP unary               -> binop
+?unary: "-" unary                            -> neg
+      | atom
+?atom: NUMBER UNIT                           -> quantity
+     | NUMBER                                -> number
+     | "pi"                                  -> pi
+     | NAME "." NAME                         -> attr
+     | call
+     | NAME                                  -> name
+     | STRING                                -> string
+     | "(" expr ")"
+
+call: NAME "(" [arg ("," arg)*] ")"
+arg: expr                                    -> pos_arg
+   | NAME "=" expr                           -> kw_arg
+
+ADD_OP: "+" | "-"
+MUL_OP: "*" | "/"
+UNIT: "ns" | "us" | "ms" | "s" | "Hz" | "kHz" | "MHz" | "GHz"
+
+NAME: /[A-Za-z_][A-Za-z0-9_]*/
+NUMBER: /\d+(\.\d+)?([eE][+-]?\d+)?/ | /\.\d+([eE][+-]?\d+)?/
+STRING: /"[^"]*"/
+
+COMMENT: /\/\/[^\n]*/ | /\/\*(.|\n)*?\*\//
+%import common.WS
+%ignore WS
+%ignore COMMENT

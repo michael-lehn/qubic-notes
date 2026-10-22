@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 520" role="img" aria-label="Timing is fixed at compile time; cores never sync at runtime" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13">
+  <defs>
+    <marker id="arch-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#8c8c8c"/>
+    </marker>
+  </defs>
+  <rect width="760" height="520" fill="#ffffff"/>
+  <text x="24" y="30" font-size="15" font-weight="600" fill="#1f1f1f">Timing is fixed at compile time; cores never sync at runtime</text>
+
+  <!-- compile path -->
+  <text x="24" y="100" font-size="11.5" fill="#5f5f5f">Compile on the host</text>
+  <rect x="196" y="52" width="184" height="36" rx="8" fill="none" stroke="#8c8c8c" stroke-width="1.25"/>
+  <text x="288" y="75" text-anchor="middle" fill="#1f1f1f">Calibration database</text>
+
+  <g fill="none" stroke="#8c8c8c" stroke-width="1.25">
+    <rect x="24" y="112" width="160" height="72" rx="8"/>
+    <rect x="208" y="112" width="160" height="72" rx="8"/>
+    <rect x="392" y="112" width="160" height="72" rx="8"/>
+    <rect x="576" y="112" width="160" height="72" rx="8"/>
+  </g>
+  <text x="36" y="136" font-weight="600" fill="#1f1f1f">QubiC-IR</text>
+  <text x="36" y="152" font-size="11.5" fill="#5f5f5f">Python dicts</text>
+  <text x="36" y="168" font-size="11.5" fill="#5f5f5f">gates, pulses, loops</text>
+  <text x="220" y="136" font-weight="600" fill="#1f1f1f">14 IR passes</text>
+  <text x="220" y="152" font-size="11.5" fill="#5f5f5f">gates → pulses</text>
+  <text x="220" y="168" font-size="11.5" fill="#5f5f5f">absolute timestamps</text>
+  <text x="404" y="136" font-weight="600" fill="#1f1f1f">Per-core assembly</text>
+  <text x="404" y="152" font-size="11.5" fill="#5f5f5f">one list per core</text>
+  <text x="404" y="168" font-size="11.5" fill="#5f5f5f">registers r0–r15</text>
+  <text x="588" y="136" font-weight="600" fill="#1f1f1f">Machine code</text>
+  <text x="588" y="152" font-size="11.5" fill="#5f5f5f">128-bit words</text>
+  <text x="588" y="168" font-size="11.5" fill="#5f5f5f">+ waveform tables</text>
+
+  <!-- runtime -->
+  <rect x="24" y="232" width="712" height="264" rx="8" fill="#f4f3f0" stroke="#8c8c8c" stroke-width="1.25"/>
+  <text x="40" y="256" font-weight="600" fill="#1f1f1f">Run on the FPGA, once per shot</text>
+
+  <g fill="none" stroke="#8c8c8c" stroke-width="1.25">
+    <rect x="40" y="272" width="240" height="88" rx="8"/>
+    <rect x="312" y="272" width="200" height="88" rx="8"/>
+    <rect x="544" y="272" width="176" height="88" rx="8"/>
+    <rect x="40" y="392" width="240" height="88" rx="8"/>
+    <rect x="312" y="392" width="200" height="88" rx="8"/>
+  </g>
+  <text x="52" y="296" font-weight="600" fill="#1f1f1f">Processor core (one per qubit)</text>
+  <text x="52" y="312" font-size="11.5" fill="#5f5f5f">PC, r0–r15, one ALU</text>
+  <text x="52" y="328" font-size="11.5" fill="#5f5f5f">qclk counts 2 ns ticks</text>
+  <text x="52" y="344" font-size="11.5" fill="#5f5f5f">pulse fires when qclk = t</text>
+  <text x="324" y="296" font-weight="600" fill="#1f1f1f">Signal generators</text>
+  <text x="324" y="312" font-size="11.5" fill="#5f5f5f">qdrv, rdrv, rdlo</text>
+  <text x="324" y="328" font-size="11.5" fill="#5f5f5f">carrier phase: own counter</text>
+  <text x="324" y="344" font-size="11.5" fill="#5f5f5f">rdlo integrates IQ</text>
+  <text x="556" y="296" font-weight="600" fill="#1f1f1f">Result buffer</text>
+  <text x="556" y="312" font-size="11.5" fill="#5f5f5f">one 64-bit IQ per read</text>
+  <text x="556" y="328" font-size="11.5" fill="#5f5f5f">host reads after run</text>
+  <text x="52" y="416" font-weight="600" fill="#1f1f1f">Shot sequencer</text>
+  <text x="52" y="432" font-size="11.5" fill="#5f5f5f">after all cores are done:</text>
+  <text x="52" y="448" font-size="11.5" fill="#5f5f5f">reset all, rerun nshot times</text>
+  <text x="324" y="416" font-weight="600" fill="#1f1f1f">FPROC (fproc_meas)</text>
+  <text x="324" y="432" font-size="11.5" fill="#5f5f5f">keeps latest bit per qubit</text>
+  <text x="324" y="448" font-size="11.5" fill="#5f5f5f">answers in 2 clocks, no wait</text>
+
+  <rect x="544" y="392" width="176" height="88" rx="8" fill="#f2b33d" fill-opacity="0.15" stroke="#d99a1e" stroke-width="2"/>
+  <text x="556" y="416" font-weight="600" fill="#1f1f1f">No runtime sync</text>
+  <text x="556" y="432" font-size="11.5" fill="#1f1f1f">sync.ready is unwired;</text>
+  <text x="556" y="448" font-size="11.5" fill="#1f1f1f">cores align only via</text>
+  <text x="556" y="464" font-size="11.5" fill="#1f1f1f">static timestamps</text>
+
+  <!-- connectors -->
+  <g fill="none" stroke="#8c8c8c" stroke-width="1.25" marker-end="url(#arch-arrow)">
+    <path d="M184 148H206"/>
+    <path d="M368 148H390"/>
+    <path d="M552 148H574"/>
+    <path d="M288 88V110"/>
+    <path d="M656 184V230"/>
+    <path d="M280 316H310"/>
+    <path d="M512 316H542"/>
+    <path d="M412 360V390"/>
+    <path d="M312 436H296V340H282"/>
+    <path d="M120 360V390"/>
+    <path d="M200 392V362"/>
+  </g>
+  <text x="664" y="212" font-size="11.5" fill="#5f5f5f">load memories</text>
+  <text x="420" y="380" font-size="11.5" fill="#5f5f5f">sign of I</text>
+  <text x="112" y="380" text-anchor="end" font-size="11.5" fill="#5f5f5f">done</text>
+  <text x="208" y="380" font-size="11.5" fill="#5f5f5f">rerun</text>
+</svg>

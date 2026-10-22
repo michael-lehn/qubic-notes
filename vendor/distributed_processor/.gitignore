@@ -1,0 +1,8 @@
+*.vcd
+*.swp
+**/sim_build
+*__pycache__*
+*results.xml
+*.vvp
+*.out
+*.nvim

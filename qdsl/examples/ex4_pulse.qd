@@ -1,0 +1,3 @@
+qubit Q0;
+pulse(Q0.qdrv, freq = Q0.freq, phase = pi / 2, amp = 0.5, width = 32 ns,
+      env = cos_edge_square(0.25));

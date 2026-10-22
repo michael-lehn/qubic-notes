@@ -1,0 +1,3 @@
+// expect: a plain number has no unit
+qubit Q0;
+delay(500);

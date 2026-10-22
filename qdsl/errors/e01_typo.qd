@@ -1,0 +1,3 @@
+// expect: unknown gate 'X9O'
+qubit Q0;
+X9O(Q0);

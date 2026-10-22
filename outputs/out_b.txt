@@ -1,0 +1,155 @@
+WARNING:root:failed to import ipdb
+WARNING:distproc.ir.passes:Z-phase resolution inside loops not supported, be careful!
+warning: could not import ipdb
+====================================================================================================
+Ex3: counter loop, i = 0; do { X90(Q0); i += 1; } while (5 > i)
+====================================================================================================
+--- IR after all passes (basic blocks, scheduled) ---
+  [block_0] start=5 dur=4 succ=['loop_0_loopctrl']
+      {'name': 'declare', 'var': 'i', 'scope': {'Q0.rdrv', 'Q0.rdlo', 'Q0.qdrv'}, 'dtype': 'int'}
+      {'name': 'set_var', 'var': 'i', 'value': 0, 'scope': {'Q0.rdrv', 'Q0.rdlo', 'Q0.qdrv'}}
+  [loop_0_loopctrl] start=9 dur=0 succ=['loop_0_loopctrl_ctrl']
+      {'name': 'jump_label', 'label': 'loop_0_loopctrl', 'scope': {'Q0.rdrv', 'Q0.rdlo', 'Q0.qdrv'}}
+      {'name': 'pulse', 'freq': 4460029188.07884, 'twidth': 2.4e-08, 'dest': 'Q0.qdrv', 'phase': 0.0, 'amp': 0.11222212331696187, 'env': [{'env_func': 'cos_edge_square', 'paradict': {'ramp_fraction': 0.25}}], 'tag': 'Q0X90', 'start_time': 9}
+      {'name': 'alu', 'lhs': 1, 'rhs': 'i', 'op': 'add', 'out': 'i', 'scope': {'Q0.rdrv', 'Q0.rdlo', 'Q0.qdrv'}}
+      {'name': 'loop_end', 'loop_label': 'loop_0_loopctrl', 'scope': {'Q0.rdrv', 'Q0.rdlo', 'Q0.qdrv'}}
+  [loop_0_loopctrl_ctrl] start=9 dur=6 succ=[]
+      {'name': 'jump_cond', 'cond_lhs': 5, 'alu_cond': 'ge', 'cond_rhs': 'i', 'scope': {'Q0.rdrv', 'Q0.rdlo', 'Q0.qdrv'}, 'jump_label': 'loop_0_loopctrl', 'jump_type': 'loopctrl'}
+  loops: {'loop_0_loopctrl': {'scope': {'Q0.rdrv', 'Q0.qdrv', 'Q0.rdlo'}, 'start_time': 9, 'delta_t': 17}}
+--- Distributed-processor assembly (per core) ---
+  core ('Q0.qdrv', 'Q0.rdrv', 'Q0.rdlo'):
+      phase_reset  
+      declare_reg  name=i, dtype=int
+      reg_alu      in0=0, in1_reg=i, alu_op=id0, out_reg=i
+      jump_label   dest_label=loop_0_loopctrl
+      pulse        freq=4.46003e+09, phase=0, amp=0.11222212331696187, env=cos_edge_square(ramp_fraction=0.25, twidth=2.4e-08), start_time=9, dest=Q0.qdrv, tag=Q0X90
+      reg_alu      in0=1, in1_reg=i, alu_op=add, out_reg=i
+      inc_qclk     in0=-17
+      jump_cond    in0=5, alu_op=ge, jump_label=loop_0_loopctrl, in1_reg=i
+      done_stb     
+--- Machine code (128-bit words, little-endian in BRAM) ---
+  :qubit_command0:
+      @0   b0000000000000000000000000000000  pulse_reset     
+      @1   10000000000000000000000000000000  reg_alu_i        alu=id0 in0=#0 in1=r0 out=r0
+      @2   90080300020000400839760000000120  pulse_write_trig t=9 cfg=0 amp=3677 freq=0 phase=0 env_word=49152
+      @3   11000000010000000000000000000000  reg_alu_i        alu=add in0=#1 in1=r0 out=r0
+      @4   61ffffffef0000000000000000000000  inc_qclk_i       alu=add in0=#-17
+      @5   35000000050000200000000000000000  jump_cond_i      alu=ge in0=#5 in1=r0 ->@2
+      @6   a0000000000000000000000000000000  done            
+  :qubit_qdrv_env0: 192 bytes
+  :qubit_qdrv_freq0: 64 bytes
+  :qubit_rdlo_env0: 0 bytes
+  :qubit_rdlo_freq0: 0 bytes
+  :qubit_rdrv_env0: 0 bytes
+  :qubit_rdrv_freq0: 0 bytes
+  result channels: {'Q0.rdlo': ('qubit_accbuf0', 1)}
+
+====================================================================================================
+Ex4: one shaped pulse on Q0.qdrv (named freq, constant params)
+====================================================================================================
+--- IR after all passes (basic blocks, scheduled) ---
+  [block_0] start=5 dur=16 succ=[]
+      {'name': 'pulse', 'freq': 4460029188.07884, 'twidth': 3.2e-08, 'dest': 'Q0.qdrv', 'phase': 1.5707963267948966, 'amp': 0.5, 'env': {'env_func': 'cos_edge_square', 'paradict': {'ramp_fraction': 0.25}}, 'start_time': 5}
+--- Distributed-processor assembly (per core) ---
+  core ('Q0.qdrv', 'Q0.rdrv', 'Q0.rdlo'):
+      phase_reset  
+      pulse        freq=4.46003e+09, phase=1.5708, amp=0.5, env=cos_edge_square(ramp_fraction=0.25, twidth=3.2e-08), start_time=5, dest=Q0.qdrv
+      done_stb     
+--- Machine code (128-bit words, little-endian in BRAM) ---
+  :qubit_command0:
+      @0   b0000000000000000000000000000000  pulse_reset     
+      @1   900804000240004008fffe00000000a0  pulse_write_trig t=5 cfg=0 amp=16383 freq=0 phase=32768 env_word=65536
+      @2   a0000000000000000000000000000000  done            
+  :qubit_qdrv_env0: 256 bytes
+  :qubit_qdrv_freq0: 64 bytes
+  :qubit_rdlo_env0: 0 bytes
+  :qubit_rdlo_freq0: 0 bytes
+  :qubit_rdrv_env0: 0 bytes
+  :qubit_rdrv_freq0: 0 bytes
+  result channels: {'Q0.rdlo': ('qubit_accbuf0', 1)}
+
+====================================================================================================
+Ex5: measure Q0 (read gate)
+====================================================================================================
+--- IR after all passes (basic blocks, scheduled) ---
+  [block_0] start=5 dur=1300 succ=[]
+      {'name': 'pulse', 'freq': 6554327471.963202, 'twidth': 2e-06, 'dest': 'Q0.rdrv', 'phase': 0.0, 'amp': 0.01967670502549965, 'env': [{'env_func': 'cos_edge_square', 'paradict': {'ramp_fraction': 0.25, 'twidth': 2e-06}}], 'tag': 'Q0read', 'start_time': 5}
+      {'name': 'pulse', 'freq': 6554327471.963202, 'twidth': 2e-06, 'dest': 'Q0.rdlo', 'phase': 1.4806632895920675, 'amp': 1.0, 'env': [{'env_func': 'square', 'paradict': {'phase': 0.0, 'amplitude': 1.0, 'twidth': 2e-06}}], 'tag': 'Q0read', 'start_time': 305}
+--- Distributed-processor assembly (per core) ---
+  core ('Q0.qdrv', 'Q0.rdrv', 'Q0.rdlo'):
+      phase_reset  
+      pulse        freq=6.55433e+09, phase=0, amp=0.01967670502549965, env=cos_edge_square(ramp_fraction=0.25, twidth=2e-06), start_time=5, dest=Q0.rdrv, tag=Q0read
+      pulse        freq=6.55433e+09, phase=1.48066, amp=1.0, env=square(phase=0, amplitude=1, twidth=2e-06), start_time=305, dest=Q0.rdlo, tag=Q0read
+      done_stb     
+--- Machine code (128-bit words, little-endian in BRAM) ---
+  :qubit_command0:
+      @0   b0000000000000000000000000000000  pulse_reset     
+      @1   9008fa0002000040080a1220000000a0  pulse_write_trig t=5 cfg=1 amp=644 freq=0 phase=0 env_word=4096000
+      @2   9008fa00023c53c009fffec000002620  pulse_write_trig t=305 cfg=6 amp=32767 freq=0 phase=30887 env_word=4096000
+      @3   a0000000000000000000000000000000  done            
+  :qubit_qdrv_env0: 0 bytes
+  :qubit_qdrv_freq0: 0 bytes
+  :qubit_rdlo_env0: 4000 bytes
+  :qubit_rdlo_freq0: 16 bytes
+  :qubit_rdrv_env0: 4000 bytes
+  :qubit_rdrv_freq0: 64 bytes
+  result channels: {'Q0.rdlo': ('qubit_accbuf0', 1)}
+
+====================================================================================================
+Ex6: if (measure(Q0) == 1) { X90(Q0); X90(Q0); }
+====================================================================================================
+--- IR after all passes (basic blocks, scheduled) ---
+  [block_0] start=5 dur=1300 succ=['block_0_ctrl']
+      {'name': 'pulse', 'freq': 6554327471.963202, 'twidth': 2e-06, 'dest': 'Q0.rdrv', 'phase': 0.0, 'amp': 0.01967670502549965, 'env': [{'env_func': 'cos_edge_square', 'paradict': {'ramp_fraction': 0.25, 'twidth': 2e-06}}], 'tag': 'Q0read', 'start_time': 5}
+      {'name': 'pulse', 'freq': 6554327471.963202, 'twidth': 2e-06, 'dest': 'Q0.rdlo', 'phase': 1.4806632895920675, 'amp': 1.0, 'env': [{'env_func': 'square', 'paradict': {'phase': 0.0, 'amplitude': 1.0, 'twidth': 2e-06}}], 'tag': 'Q0read', 'start_time': 305}
+  [block_0_ctrl] start=1305 dur=75 succ=['true_0', 'false_0']
+      {'name': 'idle', 'end_time': 1369, 'scope': {'Q0.rdrv', 'Q0.rdlo', 'Q0.qdrv'}}
+      {'name': 'jump_fproc', 'cond_lhs': 1, 'alu_cond': 'eq', 'func_id': ('Q0.rdlo', 'core_ind'), 'scope': {'Q0.rdrv', 'Q0.rdlo', 'Q0.qdrv'}, 'jump_label': 'true_0'}
+  [false_0] start=1380 dur=6 succ=['end_0']
+      {'name': 'jump_label', 'label': 'false_0', 'scope': {'Q0.rdrv', 'Q0.rdlo', 'Q0.qdrv'}}
+      {'name': 'jump_i', 'scope': {'Q0.rdrv', 'Q0.rdlo', 'Q0.qdrv'}, 'jump_label': 'end_0'}
+  [true_0] start=1380 dur=24 succ=['end_0']
+      {'name': 'jump_label', 'label': 'true_0', 'scope': {'Q0.rdrv', 'Q0.rdlo', 'Q0.qdrv'}}
+      {'name': 'pulse', 'freq': 4460029188.07884, 'twidth': 2.4e-08, 'dest': 'Q0.qdrv', 'phase': 0.0, 'amp': 0.11222212331696187, 'env': [{'env_func': 'cos_edge_square', 'paradict': {'ramp_fraction': 0.25}}], 'tag': 'Q0X90', 'start_time': 1380}
+      {'name': 'pulse', 'freq': 4460029188.07884, 'twidth': 2.4e-08, 'dest': 'Q0.qdrv', 'phase': 0.0, 'amp': 0.11222212331696187, 'env': [{'env_func': 'cos_edge_square', 'paradict': {'ramp_fraction': 0.25}}], 'tag': 'Q0X90', 'start_time': 1392}
+  [end_0] start=1404 dur=1300 succ=[]
+      {'name': 'jump_label', 'label': 'end_0', 'scope': {'Q0.rdrv', 'Q0.rdlo', 'Q0.qdrv'}}
+      {'name': 'pulse', 'freq': 6554327471.963202, 'twidth': 2e-06, 'dest': 'Q0.rdrv', 'phase': 0.0, 'amp': 0.01967670502549965, 'env': [{'env_func': 'cos_edge_square', 'paradict': {'ramp_fraction': 0.25, 'twidth': 2e-06}}], 'tag': 'Q0read', 'start_time': 1404}
+      {'name': 'pulse', 'freq': 6554327471.963202, 'twidth': 2e-06, 'dest': 'Q0.rdlo', 'phase': 1.4806632895920675, 'amp': 1.0, 'env': [{'env_func': 'square', 'paradict': {'phase': 0.0, 'amplitude': 1.0, 'twidth': 2e-06}}], 'tag': 'Q0read', 'start_time': 1704}
+--- Distributed-processor assembly (per core) ---
+  core ('Q0.qdrv', 'Q0.rdrv', 'Q0.rdlo'):
+      phase_reset  
+      pulse        freq=6.55433e+09, phase=0, amp=0.01967670502549965, env=cos_edge_square(ramp_fraction=0.25, twidth=2e-06), start_time=5, dest=Q0.rdrv, tag=Q0read
+      pulse        freq=6.55433e+09, phase=1.48066, amp=1.0, env=square(phase=0, amplitude=1, twidth=2e-06), start_time=305, dest=Q0.rdlo, tag=Q0read
+      idle         end_time=1369
+      jump_fproc   in0=1, alu_op=eq, jump_label=true_0, func_id=('Q0.rdlo', 'core_ind')
+      jump_label   dest_label=false_0
+      jump_i       jump_label=end_0
+      jump_label   dest_label=true_0
+      pulse        freq=4.46003e+09, phase=0, amp=0.11222212331696187, env=cos_edge_square(ramp_fraction=0.25, twidth=2.4e-08), start_time=1380, dest=Q0.qdrv, tag=Q0X90
+      pulse        freq=4.46003e+09, phase=0, amp=0.11222212331696187, env=cos_edge_square(ramp_fraction=0.25, twidth=2.4e-08), start_time=1392, dest=Q0.qdrv, tag=Q0X90
+      jump_label   dest_label=end_0
+      pulse        freq=6.55433e+09, phase=0, amp=0.01967670502549965, env=cos_edge_square(ramp_fraction=0.25, twidth=2e-06), start_time=1404, dest=Q0.rdrv, tag=Q0read
+      pulse        freq=6.55433e+09, phase=1.48066, amp=1.0, env=square(phase=0, amplitude=1, twidth=2e-06), start_time=1704, dest=Q0.rdlo, tag=Q0read
+      done_stb     
+--- Machine code (128-bit words, little-endian in BRAM) ---
+  :qubit_command0:
+      @0   b0000000000000000000000000000000  pulse_reset     
+      @1   9008fa0002000040080a1220000000a0  pulse_write_trig t=5 cfg=1 amp=644 freq=0 phase=0 env_word=4096000
+      @2   9008fa00023c53c009fffec000002620  pulse_write_trig t=305 cfg=6 amp=32767 freq=0 phase=30887 env_word=4096000
+      @3   c000000000000000000000000000ab20  idle             until t=1369
+      @4   53000000010000600000000000000000  jump_fproc_i     alu=eq in0=#1 ->@6 func_id=0
+      @5   20000000000000800000000000000000  jump_i           ->@8
+      @6   9008030002000040083976000000ac80  pulse_write_trig t=1380 cfg=0 amp=3677 freq=0 phase=0 env_word=49152
+      @7   9008030002000040083976000000ae00  pulse_write_trig t=1392 cfg=0 amp=3677 freq=0 phase=0 env_word=49152
+      @8   9008fa0002000040080a12200000af80  pulse_write_trig t=1404 cfg=1 amp=644 freq=0 phase=0 env_word=4096000
+      @9   9008fa00023c53c009fffec00000d500  pulse_write_trig t=1704 cfg=6 amp=32767 freq=0 phase=30887 env_word=4096000
+      @10  a0000000000000000000000000000000  done            
+  :qubit_qdrv_env0: 192 bytes
+  :qubit_qdrv_freq0: 64 bytes
+  :qubit_rdlo_env0: 4000 bytes
+  :qubit_rdlo_freq0: 16 bytes
+  :qubit_rdrv_env0: 4000 bytes
+  :qubit_rdrv_freq0: 64 bytes
+  result channels: {'Q0.rdlo': ('qubit_accbuf0', 1)}
+

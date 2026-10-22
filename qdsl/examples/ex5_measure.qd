@@ -1,0 +1,2 @@
+qubit Q0;
+measure(Q0);

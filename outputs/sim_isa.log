@@ -1,0 +1,91 @@
+rm -f results.xml
+mkdir -p sim_build
+/opt/homebrew/bin/verilator -cc --exe -Mdir sim_build --top-module toplevel_sim --timescale 1ns/1ps --vpi --public-flat-rw --prefix Vtop -o Vtop -LDFLAGS "-Wl,-rpath,/Users/lehn/git/qubic-notes/.venv/lib/python3.12/site-packages/cocotb/libs -L/Users/lehn/git/qubic-notes/.venv/lib/python3.12/site-packages/cocotb/libs -lcocotbvpi_verilator" -Wno-fatal -Wno-HIERPARAM /Users/lehn/git/qubic/distributed_processor/hdl/alu.v /Users/lehn/git/qubic/distributed_processor/hdl/cmd_mem.v /Users/lehn/git/qubic/distributed_processor/hdl/ctrl.v /Users/lehn/git/qubic/distributed_processor/hdl/instr_ptr.v /Users/lehn/git/qubic/distributed_processor/hdl/qclk.v /Users/lehn/git/qubic/distributed_processor/hdl/reg_file.v /Users/lehn/git/qubic/distributed_processor/hdl/cmd_mem_iface.sv /Users/lehn/git/qubic/distributed_processor/hdl/core_state_mgr.sv /Users/lehn/git/qubic/distributed_processor/hdl/fproc_iface.sv /Users/lehn/git/qubic/distributed_processor/hdl/fproc_lut.sv /Users/lehn/git/qubic/distributed_processor/hdl/fproc_meas.sv /Users/lehn/git/qubic/distributed_processor/hdl/meas_lut.sv /Users/lehn/git/qubic/distributed_processor/hdl/proc.sv /Users/lehn/git/qubic/distributed_processor/hdl/pulse_iface.sv /Users/lehn/git/qubic/distributed_processor/hdl/pulse_reg.sv /Users/lehn/git/qubic/distributed_processor/hdl/sync_iface.sv /Users/lehn/git/qubic/distributed_processor/sim_modules/toplevel_sim.sv /Users/lehn/git/qubic-notes/.venv/lib/python3.12/site-packages/cocotb/share/lib/verilator/verilator.cpp
+- V e r i l a t i o n   R e p o r t: Verilator 5.052 2026-09-05 rev vUNKNOWN-built20260905
+- Verilator: Built from 0.840 MB sources in 18 modules, into 0.322 MB in 19 C++ files needing 0.000 MB
+- Verilator: Walltime 0.044 s (elab=0.006, cvt=0.019, bld=0.000); cpu 0.027 s on 1 threads; allocated 17.078 MB
+make -C sim_build  -f Vtop.mk
+make[1]: Entering directory '/Users/lehn/git/qubic-notes/rtl/isa_tb/sim_build'
+c++  -I.  -MMD -I/opt/homebrew/Cellar/verilator/5.052/share/verilator/include -I/opt/homebrew/Cellar/verilator/5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fbracket-depth=4096 -fcf-protection=none -Xclang -fno-pch-timestamp -Qunused-arguments -Wno-bool-operation -Wno-c++11-narrowing -Wno-constant-logical-operand -Wno-int-in-bool-context -Wno-non-pod-varargs -Wno-parentheses-equality -Wno-shadow -Wno-sign-compare -Wno-tautological-bitwise-compare -Wno-tautological-compare -Wno-uninitialized -Wno-unnecessary-virtual-specifier -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable -Wno-vla-cxx-extension      -Os  -c -o verilator.o /Users/lehn/git/qubic-notes/.venv/lib/python3.12/site-packages/cocotb/share/lib/verilator/verilator.cpp
+c++ -Os  -I.  -MMD -I/opt/homebrew/Cellar/verilator/5.052/share/verilator/include -I/opt/homebrew/Cellar/verilator/5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fbracket-depth=4096 -fcf-protection=none -Xclang -fno-pch-timestamp -Qunused-arguments -Wno-bool-operation -Wno-c++11-narrowing -Wno-constant-logical-operand -Wno-int-in-bool-context -Wno-non-pod-varargs -Wno-parentheses-equality -Wno-shadow -Wno-sign-compare -Wno-tautological-bitwise-compare -Wno-tautological-compare -Wno-uninitialized -Wno-unnecessary-virtual-specifier -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable -Wno-vla-cxx-extension      -c -o verilated.o /opt/homebrew/Cellar/verilator/5.052/share/verilator/include/verilated.cpp
+c++ -Os  -I.  -MMD -I/opt/homebrew/Cellar/verilator/5.052/share/verilator/include -I/opt/homebrew/Cellar/verilator/5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fbracket-depth=4096 -fcf-protection=none -Xclang -fno-pch-timestamp -Qunused-arguments -Wno-bool-operation -Wno-c++11-narrowing -Wno-constant-logical-operand -Wno-int-in-bool-context -Wno-non-pod-varargs -Wno-parentheses-equality -Wno-shadow -Wno-sign-compare -Wno-tautological-bitwise-compare -Wno-tautological-compare -Wno-uninitialized -Wno-unnecessary-virtual-specifier -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable -Wno-vla-cxx-extension      -c -o verilated_dpi.o /opt/homebrew/Cellar/verilator/5.052/share/verilator/include/verilated_dpi.cpp
+c++ -Os  -I.  -MMD -I/opt/homebrew/Cellar/verilator/5.052/share/verilator/include -I/opt/homebrew/Cellar/verilator/5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fbracket-depth=4096 -fcf-protection=none -Xclang -fno-pch-timestamp -Qunused-arguments -Wno-bool-operation -Wno-c++11-narrowing -Wno-constant-logical-operand -Wno-int-in-bool-context -Wno-non-pod-varargs -Wno-parentheses-equality -Wno-shadow -Wno-sign-compare -Wno-tautological-bitwise-compare -Wno-tautological-compare -Wno-uninitialized -Wno-unnecessary-virtual-specifier -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable -Wno-vla-cxx-extension      -c -o verilated_vpi.o /opt/homebrew/Cellar/verilator/5.052/share/verilator/include/verilated_vpi.cpp
+c++ -Os  -I.  -MMD -I/opt/homebrew/Cellar/verilator/5.052/share/verilator/include -I/opt/homebrew/Cellar/verilator/5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fbracket-depth=4096 -fcf-protection=none -Xclang -fno-pch-timestamp -Qunused-arguments -Wno-bool-operation -Wno-c++11-narrowing -Wno-constant-logical-operand -Wno-int-in-bool-context -Wno-non-pod-varargs -Wno-parentheses-equality -Wno-shadow -Wno-sign-compare -Wno-tautological-bitwise-compare -Wno-tautological-compare -Wno-uninitialized -Wno-unnecessary-virtual-specifier -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable -Wno-vla-cxx-extension      -c -o verilated_threads.o /opt/homebrew/Cellar/verilator/5.052/share/verilator/include/verilated_threads.cpp
+python3 /opt/homebrew/Cellar/verilator/5.052/share/verilator/bin/verilator_includer -DVL_INCLUDE_OPT=include Vtop.cpp Vtop___024root__0.cpp Vtop_sync_iface__0.cpp Vtop_cmd_mem_iface__C10__0.cpp Vtop_fproc_iface__0.cpp Vtop_pulse_iface__0.cpp Vtop__Dpi.cpp Vtop__ConstPool__0__Slow.cpp Vtop___024root__Slow.cpp Vtop___024root__0__Slow.cpp Vtop_sync_iface__Slow.cpp Vtop_sync_iface__0__Slow.cpp Vtop_cmd_mem_iface__C10__Slow.cpp Vtop_cmd_mem_iface__C10__0__Slow.cpp Vtop_fproc_iface__Slow.cpp Vtop_fproc_iface__0__Slow.cpp Vtop_pulse_iface__Slow.cpp Vtop_pulse_iface__0__Slow.cpp Vtop__Syms__Slow.cpp > Vtop__ALL.cpp
+c++ -Os  -I.  -MMD -I/opt/homebrew/Cellar/verilator/5.052/share/verilator/include -I/opt/homebrew/Cellar/verilator/5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fbracket-depth=4096 -fcf-protection=none -Xclang -fno-pch-timestamp -Qunused-arguments -Wno-bool-operation -Wno-c++11-narrowing -Wno-constant-logical-operand -Wno-int-in-bool-context -Wno-non-pod-varargs -Wno-parentheses-equality -Wno-shadow -Wno-sign-compare -Wno-tautological-bitwise-compare -Wno-tautological-compare -Wno-uninitialized -Wno-unnecessary-virtual-specifier -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable -Wno-vla-cxx-extension      -c -o Vtop__ALL.o Vtop__ALL.cpp
+c++  -Wl,-U,__Z15vl_time_stamp64v,-U,__Z13sc_time_stampv,-U,_vlog_startup_routines   -rdynamic verilator.o verilated.o verilated_dpi.o verilated_vpi.o verilated_threads.o Vtop__ALL.a   -Wl,-rpath,/Users/lehn/git/qubic-notes/.venv/lib/python3.12/site-packages/cocotb/libs -L/Users/lehn/git/qubic-notes/.venv/lib/python3.12/site-packages/cocotb/libs -lcocotbvpi_verilator  -pthread -lpthread -ldl   -o Vtop
+rm Vtop__ALL.verilator_deplist.tmp
+make[1]: Leaving directory '/Users/lehn/git/qubic-notes/rtl/isa_tb/sim_build'
+rm -f results.xml
+COCOTB_TEST_MODULES=test_isa COCOTB_TESTCASE=  COCOTB_TOPLEVEL=toplevel_sim TOPLEVEL_LANG=verilog       \
+         sim_build/Vtop  -Wno-fatal -Wno-HIERPARAM   
+     -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:242  in gpi_load_users                  Loaded entry library: '/opt/homebrew/Cellar/python@3.12/3.12.15_1/Frameworks/Python.framework/Versions/3.12/Python'
+     -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:234  in gpi_load_users                  Running entry func 'initialize' from loaded library '/Users/lehn/git/qubic-notes/.venv/lib/python3.12/site-packages/cocotb/simulator.cpython-312-darwin.so'
+     -.--ns INFO     pygpi                              ..ib/pygpi/embed.cpp:115  in initialize                      Using Python 3.12.10 interpreter at /Users/lehn/git/qubic-notes/.venv/bin/python3.12
+     -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:74   in gpi_print_registered_impl       GPI: VPI support registered
+     0.00ns INFO     cocotb.initialize                  Seeding Python random module with 1792694704
+     0.00ns INFO     cocotb.initialize                  Initialized cocotb v2.1.0 from /Users/lehn/git/qubic-notes/.venv/lib/python3.12/site-packages/cocotb
+     0.00ns INFO     cocotb.initialize                  Running on Verilator version 5.052 2026-09-05
+     0.00ns INFO     cocotb.regression                  Running tests
+     0.00ns INFO     cocotb.regression                  running test_isa.t1_cycle_costs (1/8)
+                                                            Cycles per instruction class = distance between consecutive DECODE entries.
+   266.00ns INFO     cocotb.toplevel_sim                RESULT t1 cost: addr~1 reg_alu_i          4 clks
+   266.00ns INFO     cocotb.toplevel_sim                RESULT t1 cost: addr~2 reg_alu_i          4 clks
+   266.00ns INFO     cocotb.toplevel_sim                RESULT t1 cost: addr~3 inc_qclk_i         4 clks
+   266.00ns INFO     cocotb.toplevel_sim                RESULT t1 cost: addr~4 jump_i             4 clks
+   266.00ns INFO     cocotb.toplevel_sim                RESULT t1 cost: addr~5 jump_cond_i        6 clks
+   266.00ns INFO     cocotb.toplevel_sim                RESULT t1 cost: addr~6 jump_cond_i        6 clks
+   266.00ns INFO     cocotb.toplevel_sim                RESULT t1 cost: addr~7 pulse_write        3 clks
+   266.00ns INFO     cocotb.toplevel_sim                RESULT t1 cost: addr~8 pulse_write        3 clks
+   266.00ns INFO     cocotb.toplevel_sim                RESULT t1 cost: addr~9 alu_fproc_i        6 clks
+   266.00ns INFO     cocotb.toplevel_sim                RESULT t1 cost: addr~10 jump_fproc_i       8 clks
+   266.00ns INFO     cocotb.toplevel_sim                RESULT t1 summary: {'reg_alu_i': [4, 4], 'inc_qclk_i': [4], 'jump_i': [4], 'jump_cond_i': [6, 6], 'pulse_write': [3, 3], 'alu_fproc_i': [6], 'jump_fproc_i': [8]}
+   266.00ns INFO     cocotb.regression                  test_isa.t1_cycle_costs passed
+   266.00ns INFO     cocotb.regression                  running test_isa.t2_timed_trigger (2/8)
+                                                            pulse_write_trig fires when qclk == cmd_time: report qclk at the cstrobe edge.
+   678.00ns INFO     cocotb.toplevel_sim                RESULT t2: cstrobe first seen at qclk=102 (cmd_time=100), amp=1234
+   678.00ns INFO     cocotb.regression                  test_isa.t2_timed_trigger passed
+   678.00ns INFO     cocotb.regression                  running test_isa.t3_late_trigger_hangs (3/8)
+                                                            A trigger time already in the past never fires: core stays in DECODE.
+  6696.00ns INFO     cocotb.toplevel_sim                RESULT t3: cstrobes=0, final state=1 (1=DECODE), qclk=2995, done=0
+  6696.00ns INFO     cocotb.regression                  test_isa.t3_late_trigger_hangs passed
+  6696.00ns INFO     cocotb.regression                  running test_isa.t4_inc_qclk (4/8)
+                                                            inc_qclk immediate and register forms: qclk jump measured around the instruction.
+  6830.00ns INFO     cocotb.toplevel_sim                RESULT t4: cycle 1: qclk 0 -> 0  (step 0, i.e. in0 -1 beyond a normal tick)
+  6830.00ns INFO     cocotb.toplevel_sim                RESULT t4: cycle 2: qclk 0 -> 0  (step 0, i.e. in0 -1 beyond a normal tick)
+  6830.00ns INFO     cocotb.toplevel_sim                RESULT t4: cycle 3: qclk 0 -> 0  (step 0, i.e. in0 -1 beyond a normal tick)
+  6830.00ns INFO     cocotb.toplevel_sim                RESULT t4: cycle 4: qclk 0 -> 0  (step 0, i.e. in0 -1 beyond a normal tick)
+  6830.00ns INFO     cocotb.toplevel_sim                RESULT t4: cycle 10: qclk 5 -> 1006  (step 1001, i.e. in0 1000 beyond a normal tick)
+  6830.00ns INFO     cocotb.toplevel_sim                RESULT t4: cycle 14: qclk 1009 -> 760  (step -249, i.e. in0 -250 beyond a normal tick)
+  6830.00ns INFO     cocotb.regression                  test_isa.t4_inc_qclk passed
+  6830.00ns INFO     cocotb.regression                  running test_isa.t5_strict_compare (5/8)
+                                                            jump_cond ge: taken iff in0 > in1 (strict). r1 = 5.
+  7012.00ns INFO     cocotb.toplevel_sim                RESULT t5: after "5 ge 5" fell through -> r2=111 (111 expected, 222 would mean 6>5 not taken); "5 le 5" fell through -> r4=333 (333 expected)
+  7012.00ns INFO     cocotb.regression                  test_isa.t5_strict_compare passed
+  7012.00ns INFO     cocotb.regression                  running test_isa.t6_amp_truncation (6/8)
+                                                            amp 0.5 + (-0.1 encoded as 16-bit word 62259): pulse sees low 16 bits, compare sees 32 bits.
+  7330.01ns INFO     cocotb.toplevel_sim                RESULT t6: r0=78642 (32-bit), pulse amp word=13106 (=0.400), "1.0 > amp" taken? no
+  7330.01ns INFO     cocotb.regression                  test_isa.t6_amp_truncation passed
+  7330.01ns INFO     cocotb.regression                  running test_isa.t7_sync_without_ready (7/8)
+                                                            sync with sync.ready never asserted (as in the generated gateware) -> core never reaches done.
+  8340.01ns INFO     cocotb.toplevel_sim                RESULT t7: state after 500 clks=6 (6=SYNC_WAIT), done=0
+  8340.01ns INFO     cocotb.regression                  test_isa.t7_sync_without_ready passed
+  8340.01ns INFO     cocotb.regression                  running test_isa.t8_zero_word_is_done (8/8)
+                                                            Running off the end of the program (all-zero words) halts like done.
+  8428.01ns INFO     cocotb.toplevel_sim                RESULT t8: state=9 (9=DONE), done_gate=1
+  8428.01ns INFO     cocotb.regression                  test_isa.t8_zero_word_is_done passed
+  8428.01ns INFO     cocotb.regression                  ****************************************************************************************
+                                                        ** TEST                            STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
+                                                        ****************************************************************************************
+                                                        ** test_isa.t1_cycle_costs          PASS         266.00           0.00     128375.84  **
+                                                        ** test_isa.t2_timed_trigger        PASS         412.00           0.00     153476.05  **
+                                                        ** test_isa.t3_late_trigger_hangs   PASS        6018.00           0.04     152817.88  **
+                                                        ** test_isa.t4_inc_qclk             PASS         134.00           0.00     144864.86  **
+                                                        ** test_isa.t5_strict_compare       PASS         182.00           0.00     154258.99  **
+                                                        ** test_isa.t6_amp_truncation       PASS         318.00           0.00     154936.18  **
+                                                        ** test_isa.t7_sync_without_ready   PASS        1010.00           0.01     153961.44  **
+                                                        ** test_isa.t8_zero_word_is_done    PASS          88.00           0.00     149184.15  **
+                                                        ****************************************************************************************
+                                                        ** TESTS=8 PASS=8 FAIL=0 SKIP=0                 8428.01           0.06     149263.26  **
+                                                        ****************************************************************************************
+- :0: Verilog $finish

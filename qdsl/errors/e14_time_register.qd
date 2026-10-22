@@ -1,0 +1,3 @@
+// expect: freq registers are not supported
+qubit Q0;
+f : freq = 5 GHz;

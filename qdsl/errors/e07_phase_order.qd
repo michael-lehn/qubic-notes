@@ -1,0 +1,4 @@
+// expect: phase registers cannot be ordered
+qubit Q0;
+p : phase;
+if p < 1.0 { X90(Q0); }

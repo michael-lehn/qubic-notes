@@ -1,0 +1,101 @@
+WARNING:root:failed to import ipdb
+warning: could not import ipdb
+====================================================================================================
+Ex7: X90(Q1); X90(Q2); CNOT(Q2,Q1); read(Q1); read(Q2)
+====================================================================================================
+--- IR after all passes (basic blocks, scheduled) ---
+  [block_0] start=5 dur=1478 succ=[]
+      {'name': 'pulse', 'freq': 4675138775.442301, 'twidth': 2.4e-08, 'dest': 'Q1.qdrv', 'phase': 0.0, 'amp': 0.48150320341813146, 'env': [{'env_func': 'cos_edge_square', 'paradict': {'ramp_fraction': 0.25}}], 'tag': 'Q1X90', 'start_time': 5}
+      {'name': 'pulse', 'freq': 4944383311.009714, 'twidth': 2.4e-08, 'dest': 'Q2.qdrv', 'phase': 0.0, 'amp': 0.334704954261188, 'env': [{'env_func': 'cos_edge_square', 'paradict': {'ramp_fraction': 0.25}}], 'tag': 'Q2X90', 'start_time': 5}
+      {'name': 'pulse', 'freq': 4675138775.442301, 'twidth': 3e-07, 'dest': 'Q2.qdrv', 'phase': -4.645855388119304, 'amp': 0.2996848606680771, 'env': [{'env_func': 'cos_edge_square', 'paradict': {'ramp_fraction': 0.25, 'ramp_length': 3.2e-08}}], 'tag': 'Q2Q1CNOT', 'start_time': 17}
+      {'name': 'pulse', 'freq': 4675138775.442301, 'twidth': 3.2e-08, 'dest': 'Q1.qdrv', 'phase': 0.0, 'amp': 0.14244080983375557, 'env': [{'env_func': 'cos_edge_square', 'paradict': {'ramp_fraction': 0.25}}], 'tag': 'Q2Q1CNOT', 'start_time': 167}
+      {'name': 'pulse', 'freq': 6558671869.775688, 'twidth': 2e-06, 'dest': 'Q1.rdrv', 'phase': 0.0, 'amp': 0.018964980535141, 'env': [{'env_func': 'cos_edge_square', 'paradict': {'ramp_fraction': 0.25, 'twidth': 2e-06}}], 'tag': 'Q1read', 'start_time': 183}
+      {'name': 'pulse', 'freq': 6558671869.775688, 'twidth': 2e-06, 'dest': 'Q1.rdlo', 'phase': 0, 'amp': 1.0, 'env': [{'env_func': 'square', 'paradict': {'phase': 0.0, 'amplitude': 1.0, 'twidth': 2e-06}}], 'tag': 'Q1read', 'start_time': 483}
+      {'name': 'pulse', 'freq': 6658138379.131528, 'twidth': 2e-06, 'dest': 'Q2.rdrv', 'phase': 0.0, 'amp': 0.019780537935570334, 'env': [{'env_func': 'cos_edge_square', 'paradict': {'ramp_fraction': 0.25, 'twidth': 2e-06}}], 'tag': 'Q2read', 'start_time': 167}
+      {'name': 'pulse', 'freq': 6658138379.131528, 'twidth': 2e-06, 'dest': 'Q2.rdlo', 'phase': 4.4068693574737985, 'amp': 1.0, 'env': [{'env_func': 'square', 'paradict': {'phase': 0.0, 'amplitude': 1.0, 'twidth': 2e-06}}], 'tag': 'Q2read', 'start_time': 467}
+--- Distributed-processor assembly (per core) ---
+  core ('Q1.qdrv', 'Q1.rdrv', 'Q1.rdlo'):
+      phase_reset  
+      pulse        freq=4.67514e+09, phase=0, amp=0.48150320341813146, env=cos_edge_square(ramp_fraction=0.25, twidth=2.4e-08), start_time=5, dest=Q1.qdrv, tag=Q1X90
+      pulse        freq=4.67514e+09, phase=0, amp=0.14244080983375557, env=cos_edge_square(ramp_fraction=0.25, twidth=3.2e-08), start_time=167, dest=Q1.qdrv, tag=Q2Q1CNOT
+      pulse        freq=6.55867e+09, phase=0, amp=0.018964980535141, env=cos_edge_square(ramp_fraction=0.25, twidth=2e-06), start_time=183, dest=Q1.rdrv, tag=Q1read
+      pulse        freq=6.55867e+09, phase=0, amp=1.0, env=square(phase=0, amplitude=1, twidth=2e-06), start_time=483, dest=Q1.rdlo, tag=Q1read
+      done_stb     
+  core ('Q2.qdrv', 'Q2.rdrv', 'Q2.rdlo'):
+      phase_reset  
+      pulse        freq=4.94438e+09, phase=0, amp=0.334704954261188, env=cos_edge_square(ramp_fraction=0.25, twidth=2.4e-08), start_time=5, dest=Q2.qdrv, tag=Q2X90
+      pulse        freq=4.67514e+09, phase=-4.64586, amp=0.2996848606680771, env=cos_edge_square(ramp_fraction=0.25, ramp_length=3.2e-08, twidth=3e-07), start_time=17, dest=Q2.qdrv, tag=Q2Q1CNOT
+      pulse        freq=6.65814e+09, phase=0, amp=0.019780537935570334, env=cos_edge_square(ramp_fraction=0.25, twidth=2e-06), start_time=167, dest=Q2.rdrv, tag=Q2read
+      pulse        freq=6.65814e+09, phase=4.40687, amp=1.0, env=square(phase=0, amplitude=1, twidth=2e-06), start_time=467, dest=Q2.rdlo, tag=Q2read
+      done_stb     
+--- Machine code (128-bit words, little-endian in BRAM) ---
+  :qubit_command1:
+      @0   b0000000000000000000000000000000  pulse_reset     
+      @1   900803000200004008f68600000000a0  pulse_write_trig t=5 cfg=0 amp=15777 freq=0 phase=0 env_word=49152
+      @2   90080400320000400848ee00000014e0  pulse_write_trig t=167 cfg=0 amp=4667 freq=0 phase=0 env_word=65548
+      @3   9008fa00020000400809b620000016e0  pulse_write_trig t=183 cfg=1 amp=621 freq=0 phase=0 env_word=4096000
+      @4   9008fa000200004009fffec000003c60  pulse_write_trig t=483 cfg=6 amp=32767 freq=0 phase=0 env_word=4096000
+      @5   a0000000000000000000000000000000  done            
+  :qubit_command2:
+      @0   b0000000000000000000000000000000  pulse_reset     
+      @1   900803000200004008ab5e00000000a0  pulse_write_trig t=5 cfg=0 amp=10967 freq=0 phase=0 env_word=49152
+      @2   900825803242b5c018996e0000000220  pulse_write_trig t=17 cfg=0 amp=9819 freq=1 phase=34155 env_word=614412
+      @3   9008fa0002000040080a2220000014e0  pulse_write_trig t=167 cfg=1 amp=648 freq=0 phase=0 env_word=4096000
+      @4   9008fa0002b38d4009fffec000003a60  pulse_write_trig t=467 cfg=6 amp=32767 freq=0 phase=91930 env_word=4096000
+      @5   a0000000000000000000000000000000  done            
+  :qubit_qdrv_env1: 448 bytes
+  :qubit_qdrv_env2: 2592 bytes
+  :qubit_qdrv_freq1: 64 bytes
+  :qubit_qdrv_freq2: 128 bytes
+  :qubit_rdlo_env1: 4000 bytes
+  :qubit_rdlo_env2: 4000 bytes
+  :qubit_rdlo_freq1: 16 bytes
+  :qubit_rdlo_freq2: 16 bytes
+  :qubit_rdrv_env1: 4000 bytes
+  :qubit_rdrv_env2: 4000 bytes
+  :qubit_rdrv_freq1: 64 bytes
+  :qubit_rdrv_freq2: 64 bytes
+  result channels: {'Q1.rdlo': ('qubit_accbuf1', 1), 'Q2.rdlo': ('qubit_accbuf2', 1)}
+
+====================================================================================================
+Ex7b: three raw pulses written "sequentially" on Q0.qdrv, Q1.qdrv, Q0.rdrv
+====================================================================================================
+--- IR after all passes (basic blocks, scheduled) ---
+  [block_0] start=5 dur=19 succ=[]
+      {'name': 'pulse', 'freq': 4460029188.07884, 'twidth': 3.2e-08, 'dest': 'Q0.qdrv', 'phase': 0, 'amp': 0.5, 'env': {'env_func': 'cos_edge_square', 'paradict': {'ramp_fraction': 0.25}}, 'start_time': 5}
+      {'name': 'pulse', 'freq': 4675138775.442301, 'twidth': 3.2e-08, 'dest': 'Q1.qdrv', 'phase': 0, 'amp': 0.5, 'env': {'env_func': 'cos_edge_square', 'paradict': {'ramp_fraction': 0.25}}, 'start_time': 5}
+      {'name': 'pulse', 'freq': 6554327471.963202, 'twidth': 3.2e-08, 'dest': 'Q0.rdrv', 'phase': 0, 'amp': 0.5, 'env': {'env_func': 'cos_edge_square', 'paradict': {'ramp_fraction': 0.25}}, 'start_time': 8}
+--- Distributed-processor assembly (per core) ---
+  core ('Q0.qdrv', 'Q0.rdrv', 'Q0.rdlo'):
+      phase_reset  
+      pulse        freq=4.46003e+09, phase=0, amp=0.5, env=cos_edge_square(ramp_fraction=0.25, twidth=3.2e-08), start_time=5, dest=Q0.qdrv
+      pulse        freq=6.55433e+09, phase=0, amp=0.5, env=cos_edge_square(ramp_fraction=0.25, twidth=3.2e-08), start_time=8, dest=Q0.rdrv
+      done_stb     
+  core ('Q1.qdrv', 'Q1.rdrv', 'Q1.rdlo'):
+      phase_reset  
+      pulse        freq=4.67514e+09, phase=0, amp=0.5, env=cos_edge_square(ramp_fraction=0.25, twidth=3.2e-08), start_time=5, dest=Q1.qdrv
+      done_stb     
+--- Machine code (128-bit words, little-endian in BRAM) ---
+  :qubit_command0:
+      @0   b0000000000000000000000000000000  pulse_reset     
+      @1   900804000200004008fffe00000000a0  pulse_write_trig t=5 cfg=0 amp=16383 freq=0 phase=0 env_word=65536
+      @2   900804000200004008fffe2000000100  pulse_write_trig t=8 cfg=1 amp=16383 freq=0 phase=0 env_word=65536
+      @3   a0000000000000000000000000000000  done            
+  :qubit_command1:
+      @0   b0000000000000000000000000000000  pulse_reset     
+      @1   900804000200004008fffe00000000a0  pulse_write_trig t=5 cfg=0 amp=16383 freq=0 phase=0 env_word=65536
+      @2   a0000000000000000000000000000000  done            
+  :qubit_qdrv_env0: 256 bytes
+  :qubit_qdrv_env1: 256 bytes
+  :qubit_qdrv_freq0: 64 bytes
+  :qubit_qdrv_freq1: 64 bytes
+  :qubit_rdlo_env0: 0 bytes
+  :qubit_rdlo_env1: 0 bytes
+  :qubit_rdlo_freq0: 0 bytes
+  :qubit_rdlo_freq1: 0 bytes
+  :qubit_rdrv_env0: 64 bytes
+  :qubit_rdrv_env1: 0 bytes
+  :qubit_rdrv_freq0: 64 bytes
+  :qubit_rdrv_freq1: 0 bytes
+  result channels: {'Q0.rdlo': ('qubit_accbuf0', 1), 'Q1.rdlo': ('qubit_accbuf1', 1)}
+

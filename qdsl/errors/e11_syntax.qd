@@ -1,0 +1,3 @@
+// expect: unexpected
+qubit Q0
+X90(Q0);

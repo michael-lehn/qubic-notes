@@ -1,0 +1,4 @@
+// expect: delay needs a time
+qubit Q0;
+tau : int = 100;
+delay(tau);

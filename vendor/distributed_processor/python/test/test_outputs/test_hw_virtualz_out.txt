@@ -1,0 +1,124 @@
+{
+    "('Q0.qdrv', 'Q0.rdrv', 'Q0.rdlo')": [
+        {
+            "op": "phase_reset"
+        },
+        {
+            "dtype": "phase",
+            "name": "q0_phase",
+            "op": "declare_reg"
+        },
+        {
+            "alu_op": "id0",
+            "in0": 0,
+            "in1_reg": "q0_phase",
+            "op": "reg_alu",
+            "out_reg": "q0_phase"
+        },
+        {
+            "amp": 0.12694050581989672,
+            "dest": "Q0.qdrv",
+            "env": {
+                "env_func": "DRAG",
+                "paradict": {
+                    "alpha": -0.2624037641352016,
+                    "delta": -268000000.0,
+                    "sigmas": 3,
+                    "twidth": 3.2e-08
+                }
+            },
+            "freq": 4428998888.444014,
+            "op": "pulse",
+            "phase": "q0_phase",
+            "start_time": 7,
+            "tag": "Q0X90"
+        },
+        {
+            "alu_op": "add",
+            "in0": 1.5707963267948966,
+            "in1_reg": "q0_phase",
+            "op": "reg_alu",
+            "out_reg": "q0_phase"
+        },
+        {
+            "amp": 0.12694050581989672,
+            "dest": "Q0.qdrv",
+            "env": {
+                "env_func": "DRAG",
+                "paradict": {
+                    "alpha": -0.2624037641352016,
+                    "delta": -268000000.0,
+                    "sigmas": 3,
+                    "twidth": 3.2e-08
+                }
+            },
+            "freq": 4428998888.444014,
+            "op": "pulse",
+            "phase": "q0_phase",
+            "start_time": 23,
+            "tag": "Q0X90"
+        },
+        {
+            "amp": 0.6,
+            "dest": "Q0.rdrv",
+            "env": {
+                "env_func": "cos_edge_square",
+                "paradict": {
+                    "ramp_fraction": 0.25,
+                    "twidth": 2e-06
+                }
+            },
+            "freq": 6553620000.000857,
+            "op": "pulse",
+            "phase": 0.0,
+            "start_time": 39,
+            "tag": "Q0read"
+        },
+        {
+            "amp": 1.0,
+            "dest": "Q0.rdlo",
+            "env": {
+                "env_func": "square",
+                "paradict": {
+                    "amplitude": 1.0,
+                    "phase": 0.0,
+                    "twidth": 2e-06
+                }
+            },
+            "freq": 6553620000.000857,
+            "op": "pulse",
+            "phase": 4.538344910403168,
+            "start_time": 339,
+            "tag": "Q0read"
+        },
+        {
+            "op": "done_stb"
+        }
+    ],
+    "('Q1.qdrv', 'Q1.rdrv', 'Q1.rdlo')": [
+        {
+            "op": "phase_reset"
+        },
+        {
+            "amp": 0.6045431013154825,
+            "dest": "Q1.qdrv",
+            "env": {
+                "env_func": "DRAG",
+                "paradict": {
+                    "alpha": -0.319135498526078,
+                    "delta": -268000000.0,
+                    "sigmas": 3,
+                    "twidth": 1.6e-08
+                }
+            },
+            "freq": 4706273130.810752,
+            "op": "pulse",
+            "phase": 0.0,
+            "start_time": 5,
+            "tag": "Q1X90"
+        },
+        {
+            "op": "done_stb"
+        }
+    ]
+}

@@ -1,0 +1,188 @@
+{
+    "program": {
+        "block_0": [
+            {
+                "name": "declare",
+                "var": "q0_phase",
+                "scope": [
+                    "Q0.qdrv",
+                    "Q0.rdlo",
+                    "Q0.rdrv"
+                ],
+                "dtype": "phase"
+            },
+            {
+                "name": "barrier",
+                "scope": [
+                    "Q0.qdrv",
+                    "Q0.rdlo",
+                    "Q0.rdrv"
+                ]
+            },
+            {
+                "name": "pulse",
+                "freq": "Q0.freq",
+                "twidth": 3.2e-08,
+                "dest": "Q0.qdrv",
+                "phase": 0.0,
+                "amp": 0.12694050581989672,
+                "env": [
+                    {
+                        "env_func": "DRAG",
+                        "paradict": {
+                            "alpha": -0.2624037641352016,
+                            "sigmas": 3,
+                            "delta": -268000000.0
+                        }
+                    }
+                ],
+                "tag": "Q0X90"
+            },
+            {
+                "name": "barrier",
+                "scope": [
+                    "Q1.qdrv",
+                    "Q1.rdlo",
+                    "Q1.rdrv"
+                ]
+            },
+            {
+                "name": "pulse",
+                "freq": "Q1.freq",
+                "twidth": 1.6e-08,
+                "dest": "Q1.qdrv",
+                "phase": 0.0,
+                "amp": 0.6045431013154825,
+                "env": [
+                    {
+                        "env_func": "DRAG",
+                        "paradict": {
+                            "alpha": -0.319135498526078,
+                            "sigmas": 3,
+                            "delta": -268000000.0
+                        }
+                    }
+                ],
+                "tag": "Q1X90"
+            },
+            {
+                "name": "set_var",
+                "var": "q0_phase",
+                "value": 3.4033920413889422,
+                "scope": [
+                    "Q0.qdrv",
+                    "Q0.rdlo",
+                    "Q0.rdrv"
+                ]
+            },
+            {
+                "name": "barrier",
+                "scope": [
+                    "Q0.qdrv",
+                    "Q0.rdlo",
+                    "Q0.rdrv"
+                ]
+            },
+            {
+                "name": "pulse",
+                "freq": "Q0.freq",
+                "twidth": 3.2e-08,
+                "dest": "Q0.qdrv",
+                "phase": 3.4033920413889422,
+                "amp": 0.12694050581989672,
+                "env": [
+                    {
+                        "env_func": "DRAG",
+                        "paradict": {
+                            "alpha": -0.2624037641352016,
+                            "sigmas": 3,
+                            "delta": -268000000.0
+                        }
+                    }
+                ],
+                "tag": "Q0X90"
+            },
+            {
+                "name": "barrier",
+                "scope": [
+                    "Q0.qdrv",
+                    "Q0.rdlo",
+                    "Q0.rdrv"
+                ]
+            },
+            {
+                "name": "pulse",
+                "freq": "Q0.readfreq",
+                "twidth": 2e-06,
+                "dest": "Q0.rdrv",
+                "phase": 0.0,
+                "amp": 0.6,
+                "env": [
+                    {
+                        "env_func": "cos_edge_square",
+                        "paradict": {
+                            "ramp_fraction": 0.25
+                        }
+                    }
+                ],
+                "tag": "Q0read"
+            },
+            {
+                "name": "delay",
+                "t": 6e-07,
+                "scope": [
+                    "Q0.rdlo"
+                ]
+            },
+            {
+                "name": "pulse",
+                "freq": "Q0.readfreq",
+                "twidth": 2e-06,
+                "dest": "Q0.rdlo",
+                "phase": 4.538344910403168,
+                "amp": 1.0,
+                "env": [
+                    {
+                        "env_func": "square",
+                        "paradict": {
+                            "phase": 0.0,
+                            "amplitude": 1.0
+                        }
+                    }
+                ],
+                "tag": "Q0read"
+            }
+        ]
+    },
+    "vars": {
+        "q0_phase": {
+            "scope": [
+                "Q0.qdrv",
+                "Q0.rdlo",
+                "Q0.rdrv"
+            ],
+            "dtype": "phase"
+        }
+    },
+    "freqs": {
+        "Q0.freq": 4428998888.444014,
+        "Q1.freq": 4706273130.810752,
+        "Q0.readfreq": 6553620000.000857
+    },
+    "hw_zphase_bindings": {
+        "Q0.freq": "q0_phase"
+    },
+    "scope": {
+        "block_0": [
+            "Q0.qdrv",
+            "Q0.rdlo",
+            "Q0.rdrv",
+            "Q1.qdrv",
+            "Q1.rdlo",
+            "Q1.rdrv"
+        ]
+    },
+    "control_flow_graph": {
+        "block_0": []
+    }
+}

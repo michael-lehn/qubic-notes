@@ -1,0 +1,14 @@
+// Ramsey-style loop on an int counter, with a register phase for the second pulse.
+qubit Q0;
+ph : phase = 0;
+n := 0;
+
+do {
+    X90(Q0);
+    delay(1 us);
+    pulse(Q0.qdrv, freq = Q0.freq, phase = ph, amp = 0.11, width = 24 ns, env = cos_edge_square(0.25));
+    measure(Q0);
+    delay(500 us);
+    ph += pi / 8;
+    n += 1;
+} while n < 16;

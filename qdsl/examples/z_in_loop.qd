@@ -1,0 +1,10 @@
+// QD warns where QubiC's virtual-Z tracking breaks: a Z90 inside a loop.
+qubit Q0;
+n := 0;
+do {
+    X90(Q0);
+    Z90(Q0);
+    X90(Q0);
+    measure(Q0);
+    n += 1;
+} while n < 3;

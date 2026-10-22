@@ -1,0 +1,185 @@
+{
+    "('Q0.qdrv', 'Q0.rdrv', 'Q0.rdlo')": [
+        {
+            "op": "phase_reset"
+        },
+        {
+            "amp": 0.5,
+            "dest": "Q0.qdrv",
+            "env": {
+                "env_func": "DRAG",
+                "paradict": {
+                    "alpha": -0.2624037641352016,
+                    "delta": -268000000.0,
+                    "sigmas": 3,
+                    "twidth": 3.2e-08
+                }
+            },
+            "freq": 5000000000.0,
+            "op": "pulse",
+            "phase": 1.5707963267948966,
+            "start_time": 5
+        },
+        {
+            "amp": 0.5,
+            "dest": "Q0.qdrv",
+            "env": {
+                "env_func": "DRAG",
+                "paradict": {
+                    "alpha": -0.2624037641352016,
+                    "delta": -268000000.0,
+                    "sigmas": 3,
+                    "twidth": 3.2e-08
+                }
+            },
+            "freq": 5000000000.0,
+            "op": "pulse",
+            "phase": 1.5707963267948966,
+            "start_time": 25
+        },
+        {
+            "amp": 0.5,
+            "dest": "Q0.rdlo",
+            "env": {
+                "env_func": "DRAG",
+                "paradict": {
+                    "alpha": -0.2624037641352016,
+                    "delta": -268000000.0,
+                    "sigmas": 3,
+                    "twidth": 1e-06
+                }
+            },
+            "freq": 5000000000.0,
+            "op": "pulse",
+            "phase": 1.5707963267948966,
+            "start_time": 41
+        },
+        {
+            "end_time": 605,
+            "op": "idle"
+        },
+        {
+            "alu_op": "eq",
+            "func_id": [
+                "Q0.rdlo",
+                "core_ind"
+            ],
+            "in0": 1,
+            "jump_label": "end_0",
+            "op": "jump_fproc"
+        },
+        {
+            "dest_label": "false_0",
+            "op": "jump_label"
+        },
+        {
+            "amp": 0.5,
+            "dest": "Q0.qdrv",
+            "env": {
+                "env_func": "DRAG",
+                "paradict": {
+                    "alpha": -0.2624037641352016,
+                    "delta": -268000000.0,
+                    "sigmas": 3,
+                    "twidth": 3.2e-08
+                }
+            },
+            "freq": 5000000000.0,
+            "op": "pulse",
+            "phase": 1.5707963267948966,
+            "start_time": 616
+        },
+        {
+            "jump_label": "end_0",
+            "op": "jump_i"
+        },
+        {
+            "dest_label": "end_0",
+            "op": "jump_label"
+        },
+        {
+            "amp": 0.5,
+            "dest": "Q0.qdrv",
+            "env": {
+                "env_func": "DRAG",
+                "paradict": {
+                    "alpha": -0.2624037641352016,
+                    "delta": -268000000.0,
+                    "sigmas": 3,
+                    "twidth": 5e-08
+                }
+            },
+            "freq": 5000000000.0,
+            "op": "pulse",
+            "phase": 1.5707963267948966,
+            "start_time": 632
+        },
+        {
+            "op": "done_stb"
+        }
+    ],
+    "('Q1.qdrv', 'Q1.rdrv', 'Q1.rdlo')": [
+        {
+            "op": "phase_reset"
+        },
+        {
+            "amp": 0.5,
+            "dest": "Q1.qdrv",
+            "env": {
+                "env_func": "DRAG",
+                "paradict": {
+                    "alpha": -0.2624037641352016,
+                    "delta": -268000000.0,
+                    "sigmas": 3,
+                    "twidth": 3.2e-08
+                }
+            },
+            "freq": 5500000000.0,
+            "op": "pulse",
+            "phase": 1.5707963267948966,
+            "start_time": 41
+        },
+        {
+            "alu_op": "eq",
+            "func_id": [
+                "Q1.rdlo",
+                "core_ind"
+            ],
+            "in0": 1,
+            "jump_label": "end_1",
+            "op": "jump_fproc"
+        },
+        {
+            "dest_label": "false_1",
+            "op": "jump_label"
+        },
+        {
+            "amp": 0.5,
+            "dest": "Q1.qdrv",
+            "env": {
+                "env_func": "DRAG",
+                "paradict": {
+                    "alpha": -0.2624037641352016,
+                    "delta": -268000000.0,
+                    "sigmas": 3,
+                    "twidth": 4.2e-08
+                }
+            },
+            "freq": 5000000000.0,
+            "op": "pulse",
+            "phase": 1.5707963267948966,
+            "start_time": 549
+        },
+        {
+            "jump_label": "end_1",
+            "op": "jump_i"
+        },
+        {
+            "dest_label": "end_1",
+            "op": "jump_label"
+        },
+        {
+            "op": "done_stb"
+        }
+    ]
+}
