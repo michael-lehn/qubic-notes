@@ -1,0 +1,15 @@
+diff -ru --ex a/distproc/ir/passes.py b/distproc/ir/passes.py
+--- a/distproc/ir/passes.py	2026-10-22 23:15:33
++++ b/distproc/ir/passes.py	2026-10-22 23:15:33
+@@ -1017,7 +1017,10 @@
+             else: 
+                 duration = self._resolve_hold_and_increment(ir_prog.blocks[nodename]['instructions'], scope, start_time, dest_last_t=pulse_cur_t)
+ 
+-            if isinstance(ir_prog.blocks[nodename]['instructions'][-1], iri.LoopEnd):
++            # local scheduling removes barrier/delay instructions, which can leave a block empty
++            # (e.g. a loop followed only by a delay); its timing is still carried by start/end time
++            instructions = ir_prog.blocks[nodename]['instructions']
++            if instructions and isinstance(instructions[-1], iri.LoopEnd):
+                 loopname = ir_prog.blocks[nodename]['instructions'][-1].loop_label
+                 ir_prog.blocks[nodename]['pulse_end_t'] = {dest: ir_prog.loops[loopname].start_time \
+                         for dest in ir_prog.blocks[nodename]['scope']}

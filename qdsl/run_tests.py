@@ -57,6 +57,8 @@ def check_example(name: str, b: backend.Build):
         ops = b.asm.program[('Q0.qdrv', 'Q0.rdrv', 'Q0.rdlo')]
         assert any(i['op'] == 'inc_qclk' and isinstance(i['in0'], str) for i in ops), 'no register inc_qclk'
         assert len(b.words()['qubit_command0']) < 22, 'should beat the unrolled version'
+    elif name == 'loop_then_delay':
+        assert len(b.words()['qubit_command0']) > 0                  # compiled at all
     elif name == 'ex3_counter':
         assert any('jump_cond' == i['op'] for i in b.asm.program[('Q0.qdrv', 'Q0.rdrv', 'Q0.rdlo')])
 

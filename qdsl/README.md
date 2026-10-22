@@ -13,40 +13,53 @@ python -m qdsl.run_tests                          # examples + error cases
 
 ## Language at a glance
 
+A complete program that uses every construct (it compiles as is):
+
 ```odin
-qubit Q0, Q1;                       // calibrated qubits (from qubitcfg.json)
+qubit Q0, Q1, Q2;                   // calibrated qubits (from qubitcfg.json)
 
 WAIT : time : 500 us;               // constant   name : type : value
 STEP :: 0.1;                        // constant, inferred
-// register   name : type = value   (int | amp | phase | time)
-a    : amp = 0.1;
-n    := 0;                          // register, inferred int
+a : amp = 0.1;                      // register   name : type = value
+n := 0;                             // register, inferred int
 
-// always inlined
+// procs are always inlined
 ramsey :: proc(q: qubit, t: time) { X90(q); delay(t); X90(q); }
 
-do { ... } while a < 1.0;           // the hardware loop: post-test
-for n < 10 { ... }                  // pre-test (guarded do-while)
-for i in 0..<5 { ... }              // counter loop on an int register
-#unroll for t in 0 us ..< 50 us step 10 us { ... }   // compile-time loop
-if measure(Q0) == 1 { ... } else { ... }      // measurement feedback
+do {                                // the hardware loop: post-test
+    pulse(Q0.qdrv, freq = Q0.freq, amp = a, phase = pi / 2,
+          width = 24 ns, env = cos_edge_square(0.25));
+    measure(Q0);
+    delay(WAIT);
+    a += STEP;
+} while a < 1.0;
+
+for n < 3 { X90(Q0); n += 1; }      // pre-test (guarded do-while)
+for i in 0..<5 { X90(Q1); }         // counter loop on an int register
+#unroll for t in 0 us ..< 50 us step 10 us {   // compile-time loop
+    ramsey(Q0, t);
+    measure(Q0);
+}
+if measure(Q0) == 1 { X90(Q0); } else { X90(Q1); }   // feedback
 m := measure(Q1);                   // measurement into a register
 par { { X90(Q0); } { X90(Q1); } }   // explicit parallelism
-pulse(Q0.qdrv, freq = Q0.freq, amp = a, phase = pi/2, width = 24 ns,
-      env = cos_edge_square(0.25));
-delay(10 us);  barrier(Q0, Q1);  gate("Y-90", Q0);  X90(Q0);  CNOT(Q2, Q1);
-// runtime delay (needs the patched compiler)
-tau : time = 0 us;  delay(tau);  tau += 10 us;
+delay(10 us);
+barrier(Q0, Q1);
+gate("Y-90", Q0);                   // gate name that is not an identifier
+CNOT(Q2, Q1);
+tau : time = 0 us;                  // runtime delay (patched compiler)
+delay(tau);
+tau += 10 us;
 ```
 
 ## Semantics
 
 | Construct | Meaning | Lowering |
 |---|---|---|
-| `S1; S2` | S2 starts when everything S1 used is idle | `barrier(qubits(S1) ∪ qubits(S2))` |
-| `par { {B1} {B2} }` | branches start together; next statement waits for the longest | barrier before, branches, barrier via the next `;` |
-| `delay(t)` | idle the enclosing qubits for t (or the listed ones) | `delay` scoped to those qubits |
-| `delay(tau)`, `tau : time` | runtime delay; applies to every qubit of the program | `alu sub` into a scratch register + `inc_qclk` on every core (patched IR op, `patches/`) |
+| `X90(Q0); X90(Q1);` | the second statement starts when everything the first used is idle | `barrier(Q0, Q1)`: the union of both statements' qubits |
+| `par { { X90(Q0); } { X90(Q1); } }` | branches start together; next statement waits for the longest | barrier before, branches, barrier via the next `;` |
+| `delay(10 us);`, `delay(10 us, Q0);` | idle the enclosing qubits (or the listed ones) | `delay` scoped to those qubits |
+| `tau : time = 0 us;` then `delay(tau);` | runtime delay; applies to every qubit of the program | `alu sub` into a scratch register + `inc_qclk` on every core (patched IR op, `patches/`) |
 | constants | folded at compile time, with units | immediates, envelope buffers |
 | registers | replicated on every core that needs them | `declare` with an inferred scope |
 | `do/while`, `for`, `if` | conditions normalized to the hardware's `<`, `>`, `==` with a register on the right | `loop`, `branch_var`, `branch_fproc` |

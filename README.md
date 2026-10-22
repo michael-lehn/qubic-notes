@@ -85,6 +85,8 @@ static checks. See `qdsl/README.md`.
 python -m qdsl qdsl/examples/ex7_two_qubits.qd   # static schedule
 python -m qdsl.run_tests                          # 13 examples, 16 errors
 rtl/qd_tb/run_demo.sh                             # QD -> machine code -> RTL
+# every QD snippet in the docs parses; programs compile to the listed words
+python tools/check_doc_dsl.py docs/reference.md qdsl/README.md
 ```
 
 `setup.sh` installs a **patched** copy of `distproc` (see `patches/README.md`);

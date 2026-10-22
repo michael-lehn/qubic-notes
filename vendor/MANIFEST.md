@@ -2,9 +2,8 @@
 
 Unmodified copies of the QubiC sources this project builds on, simulates, or
 cites. Everything in `qubic-notes` uses these copies; nothing refers to a QubiC
-checkout or fetches anything. Our only change to QubiC is
-`../patches/distproc-runtime-delay.patch`, which `setup.sh` applies to a build
-copy, never to these files.
+checkout or fetches anything. Our changes to QubiC are the patches in
+`../patches/`, which `setup.sh` applies to a build copy, never to these files.
 
 Paths in the reference doc (e.g. `distproc/ir/passes.py:110`,
 `distributed_processor/hdl/ctrl.v`, `gateware/dsp/element.sv`) resolve inside

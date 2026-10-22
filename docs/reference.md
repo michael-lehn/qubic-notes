@@ -57,49 +57,50 @@ The IR is a list of Python dicts; `name` selects a class in
 `distproc/ir/instructions.py` by CamelCase conversion, and **any unknown name
 silently becomes a `Gate`** to be looked up in the calibration database
 (`ir.py:263-290`) \[code\]. There is no `read` class: measurement is the gate
-`read`. The DSL column is a proposal \[interp\].
+`read`. The QD column shows how QD (see QD prototype) writes each operation;
+"not in QD v0" marks IR features QD does not expose.
 
 **Variables and arithmetic**
 
-| IR op | Key parameters | Lowers to (asm) | Proposed DSL | Source |
+| IR op | Key parameters | Lowers to (asm) | QD | Source |
 | --- | --- | --- | --- | --- |
-| `declare` | `var`, `scope`, `dtype` ∈ {int, phase, amp} | `declare_reg` on every core in scope | `var a: amp @ Q0;` | `instructions.py:478-487`, `compiler.py:232-234` |
+| `declare` | `var`, `scope`, `dtype` ∈ {int, phase, amp} | `declare_reg` on every core in scope | `a : amp;` | `instructions.py:478-487`, `compiler.py:232-234` |
 | `set_var` | `var`, `value` | `reg_alu in0=imm id0` | `a = 0.1;` | `instructions.py:515`, `compiler.py:251-254` |
-| `alu` | `op` ∈ {add, sub, eq, le, ge, id0, id1, zero}; `lhs` imm or var; `rhs` var only; `out` | `reg_alu` computing `lhs op rhs` | `a = 0.1 + a;` | `instructions.py:499`, `compiler.py:246-249` |
-| `bind_phase` | `var`, `qubit`/`freq` | `set_var 0`; later virtual-Z on that frame → `alu add`; pulses on it use the register as phase | `bind frame(Q0) -> ph;` | `passes.py:568-594` |
-| `declare_freq` | `freq`, `freqname`, `freq_ind`, `scope` | registers the frequency; with `freq_ind` an asm `declare_freq` (no machine word) | `freq f0 = 4.94 GHz @ Q0 [idx 3];` | `compiler.py:236-244`, `assembler.py:199` |
+| `alu` | `op` ∈ {add, sub, eq, le, ge, id0, id1, zero}; `lhs` imm or var; `rhs` var only; `out` | `reg_alu` computing `lhs op rhs` | `a = a + 0.1;` | `instructions.py:499`, `compiler.py:246-249` |
+| `bind_phase` | `var`, `qubit`/`freq` | `set_var 0`; later virtual-Z on that frame → `alu add`; pulses on it use the register as phase | not in QD v0 | `passes.py:568-594` |
+| `declare_freq` | `freq`, `freqname`, `freq_ind`, `scope` | registers the frequency; with `freq_ind` an asm `declare_freq` (no machine word) | `F0 : freq : 4.94 GHz;` (no table index) | `compiler.py:236-244`, `assembler.py:199` |
 
 **Control flow**
 
-| IR op | Key parameters | Lowers to (asm) | Proposed DSL | Source |
+| IR op | Key parameters | Lowers to (asm) | QD | Source |
 | --- | --- | --- | --- | --- |
-| `loop` | `cond_lhs` imm/var, `alu_cond`, `cond_rhs` var, `body`, `scope` | `jump_label; barrier; body; loop_end → inc_qclk(−Δt); jump_cond` — a **do-while** | `do { … } while (1.0 > a);` | `passes.py:110-121`, `compiler.py:279-281` |
-| `branch_var` | `cond_lhs`, `alu_cond`, `cond_rhs`, `true`, `false` | `jump_cond`, false block, `jump_i`, true block | `if (10 == n) { … } else { … }` | `passes.py:73-108` |
-| `branch_fproc` | `cond_lhs`, `alu_cond`, `func_id`, `true`, `false` | `hold`→`idle`, `jump_fproc`, blocks as above | `if (measure(Q0) == 1) { … }` | `passes.py:73-108, 721-730` |
+| `loop` | `cond_lhs` imm/var, `alu_cond`, `cond_rhs` var, `body`, `scope` | `jump_label; barrier; body; loop_end → inc_qclk(−Δt); jump_cond` — a **do-while** | `do { X90(Q0); } while a < 1.0;` | `passes.py:110-121`, `compiler.py:279-281` |
+| `branch_var` | `cond_lhs`, `alu_cond`, `cond_rhs`, `true`, `false` | `jump_cond`, false block, `jump_i`, true block | `if n == 10 { X90(Q0); } else { X90(Q1); }` | `passes.py:73-108` |
+| `branch_fproc` | `cond_lhs`, `alu_cond`, `func_id`, `true`, `false` | `hold`→`idle`, `jump_fproc`, blocks as above | `if measure(Q0) == 1 { X90(Q0); }` | `passes.py:73-108, 721-730` |
 | `jump_cond`, `jump_fproc`, `jump_i`, `jump_label` | low-level forms, also accepted as input | 1:1 | internal | `instructions.py:343-476` |
-| `block` | `body`, `scope` | forces a basic-block boundary with explicit scope | `block @ Q0, Q1 { … }` | `passes.py:127-131, 189-198` |
-| `halt` | `scope` | `done_stb` | `halt;` | `compiler.py:287-289` |
+| `block` | `body`, `scope` | forces a basic-block boundary with explicit scope | not in QD v0 (scopes are inferred) | `passes.py:127-131, 189-198` |
+| `halt` | `scope` | `done_stb` | not in QD v0 | `compiler.py:287-289` |
 
 **Timing**
 
-| IR op | Key parameters | Lowers to (asm) | Proposed DSL | Source |
+| IR op | Key parameters | Lowers to (asm) | QD | Source |
 | --- | --- | --- | --- | --- |
-| `delay` | `t` in seconds, compile-time constant; `qubit`/`scope` | removed by the scheduler (advances the channel cursor); unscoped = every channel of the program | `delay(500 us) @ Q0;` | `passes.py:317-324, 1141-1145` |
+| `delay` | `t` in seconds, compile-time constant; `qubit`/`scope` | removed by the scheduler (advances the channel cursor); unscoped = every channel of the program | `delay(500 us, Q0);` | `passes.py:317-324, 1141-1145` |
 | `barrier` | `qubit`/`scope` | removed; aligns the cursors of all channels in scope | `barrier(Q0, Q1);` | `passes.py:1132-1139` |
 | `idle` | `end_time` (absolute clocks) | `idle` | — | `compiler.py:283-285` |
 | `hold` | `nclks`, `ref_chans` | `idle`; inserted automatically before every FPROC read | implicit | `instructions.py:307`, `passes.py:1171-1187` |
-| `start_time` field | on `pulse`/gate | manual timestamp when scheduling is off (`LintSchedule` checks it) | `pulse(…) @ t = 100 clk` | `passes.py:1036-1056` |
+| `start_time` field | on `pulse`/gate | manual timestamp when scheduling is off (`LintSchedule` checks it) | not in QD v0 (`;` and `par` order statements) | `passes.py:1036-1056` |
 
 **Pulses, frames and measurement**
 
-| IR op | Key parameters | Lowers to (asm) | Proposed DSL | Source |
+| IR op | Key parameters | Lowers to (asm) | QD | Source |
 | --- | --- | --- | --- | --- |
-| `pulse` | `freq` (Hz, name or int var), `phase` (rad or var), `amp` (or var), `twidth`, `env` (dict or samples), `dest` | `pulse`: 1 machine word, or 2–3 when several parameters come from registers | `pulse(Q0.qdrv, …);` | `instructions.py:165`, `compiler.py:199-226`, `assembler.py:308-321` |
-| `virtual_z` | `phase`, `qubit`/`freq` | default: folded into later pulse phases at compile time; if bound: `alu add` | `vz(Q0, π/2);` | `passes.py:604-672` |
-| `derive_phase_tracker` | `components` \[(freq, coeff)\] | compile-time frame algebra | `frame f = Q0.freq − Q1.freq;` | `passes.py:488-541` |
+| `pulse` | `freq` (Hz, name or int var), `phase` (rad or var), `amp` (or var), `twidth`, `env` (dict or samples), `dest` | `pulse`: 1 machine word, or 2–3 when several parameters come from registers | `pulse(Q0.qdrv, amp = 0.5, width = 24 ns, env = cos_edge_square(0.25));` | `instructions.py:165`, `compiler.py:199-226`, `assembler.py:308-321` |
+| `virtual_z` | `phase`, `qubit`/`freq` | default: folded into later pulse phases at compile time; if bound: `alu add` | via calibrated gates, e.g. `Z90(Q0);` | `passes.py:604-672` |
+| `derive_phase_tracker` | `components` \[(freq, coeff)\] | compile-time frame algebra | not in QD v0 | `passes.py:488-541` |
 | `read` (a Gate) | `qubit` | calibrated pulses on `rdrv` and `rdlo` | `measure(Q0);` | `ir.py:284-290`, `software/examples/qubitcfg.json` |
 | `read_fproc` | `func_id` (e.g. `'Q0.meas'`), `var` | `hold`→`idle`, `alu_fproc in0=0 id1` | `m = measure(Q0);` | `compiler.py:255-258` |
-| `alu_fproc` | `func_id`, `lhs`, `op`, `out` | `alu_fproc` | `n = n + meas(Q0);` | `compiler.py:260-263` |
+| `alu_fproc` | `func_id`, `lhs`, `op`, `out` | `alu_fproc` | not in QD v0 | `compiler.py:260-263` |
 | any other name (`X90`, `CNOT`, …) | `qubit` list, `modi` overrides | barrier over the qubits' channels, then pulses, delays and virtual-Z from the calibration database entry `"Q2Q1" + "CNOT"` | `X90(Q0); CNOT(Q2, Q1);` | `passes.py:377-454` |
 
 Assembly emitted with no IR source: `phase_reset` at the start and `done_stb` at
@@ -111,9 +112,9 @@ lowers to this IR already exists in `distproc/openqasm/visitor.py`; for example
 
 A C-like surface fits QubiC's classical skeleton, but its implied semantics are
 wrong in five places: time, loops, types, measurement and abstraction level. The
-sketch under review:
+original sketch under review, in its own C-like syntax (superseded, not QD):
 
-```c
+```text
 decl amp: amp @ Q0;
 amp = 0.1;
 while (amp <= 1.0) {
@@ -125,9 +126,25 @@ while (amp <= 1.0) {
 }
 ```
 
-**What each construct really means**
+The same program in QD; it compiles to exactly the same 9 machine words (Example
+0):
 
-| Construct | Verdict | What the implementation does |
+```odin
+qubit Q0;
+a : amp = 0.1;
+
+do {
+    delay(500 us);
+    pulse(Q0.qdrv, freq = 4.944383311 GHz, amp = a, width = 24 ns,
+          env = cos_edge_square(ramp_fraction = 0.25));
+    measure(Q0);
+    a += 0.1;
+} while a < 1.0;
+```
+
+**What each construct of the original sketch really means**
+
+| Original construct | Verdict | What the implementation does |
 | --- | --- | --- |
 | `decl amp: amp @ Q0` | Partly right | `Q0` expands to channels `Q0.qdrv`, `Q0.rdrv`, `Q0.rdlo` (`ir.py:324-344`), which map to processor cores (`ir.py:398-442`); each core in scope gets its **own register copy** (`compiler.py:232-234`). Only `int`, `phase`, `amp` exist. \[code\] |
 | `amp = 0.1` | Right, quantized | `reg_alu_i id0 #3276` — 0.1 becomes a 16-bit fixed-point word (`assembler.py:403-410`, `command_gen.py:361-375`). \[code\] |
@@ -150,45 +167,48 @@ below). \[interp\]
    `barrier` and gates synchronize, and a gate only at its *start*
    (`passes.py:419`). Every pulse carries an absolute timestamp, loop bodies
    must have a fixed length (they rewind `qclk`), and the join after an `if`
-   sits at the worst-case path (`passes.py:1003-1007`). Counterexample:
-   `pulse(Q0.qdrv); pulse(Q1.qdrv); pulse(Q0.rdrv);` all start at t = 5 (Example
-   7b). A `delay(tau)` with a runtime `tau` cannot be expressed in the IR.
-   **Minimal extension:** first-class `barrier`, `align { }` /
-   `block @scope { }`, constant-typed delays, optional `@t=` annotations, and a
-   runtime `delay(tau)` lowered to register `inc_qclk` (see Instruction set).
+   sits at the worst-case path (`passes.py:1003-1007`). Counterexample: in the
+   IR, pulses written in the order Q0.qdrv, Q1.qdrv, Q0.rdrv start at t = 5, 5
+   and 8 (Example 7b). A `delay(tau)` with a runtime `tau` cannot be expressed
+   in the IR. **In QD:** `;` is strictly sequential, `par` makes parallelism
+   explicit, delays are constants or `time` registers, and `delay(tau);` lowers
+   to a register `inc_qclk` (see QD prototype).
 2. **The loop is a do-while with strict comparisons.** The right operand must be
    a variable; there is no `break`; virtual-Z tracking inside loops is
    unsupported (`passes.py:668-669`). Repetition of the experiment is not a
    program loop: the gateware reruns the whole program `nshot` times
-   (`gateware/dsp/dsp.sv:199-232`). **Minimal extension:** spell it
-   `do { } while (c);` or emit a guard jump for real `while`; accept `<=`/`>=`
-   only for `int`; add `for i in [a:b:s]` as the OpenQASM frontend does
+   (`gateware/dsp/dsp.sv:199-232`). **In QD:** the native loop is
+   `do { X90(Q0); } while n < 5;`; `for n < 5 { X90(Q0); }` adds a guard jump;
+   `<=` and `>=` in loop conditions are accepted only for `int`; and
+   `for i in 0..<5 { X90(Q0); }` counts, as the OpenQASM frontend does
    (`visitor.py:402-438`).
 3. **Types are hardware words.** One 32-bit two's-complement ALU with add, sub,
    compare and identity; no multiply (`alu.v`). `amp` is Q1.15 scaled by 32767;
    `phase` is 17-bit turns; `freq` is a 9-bit table index; 16 registers per
    core, allocated in order and never freed (`assembler.py:60, 202-216`).
-   Counterexamples: `freq += 1 MHz`, `amp *= 0.5`, and `amp -= 0.1` followed by
-   a comparison (the pulse is right, the comparison wrong — verified in
-   simulation). **Minimal extension:** distinct `int`, `amp`, `phase`,
-   `freq_idx` types; `+`, `−` and comparisons only between equal types; constant
-   folding for `*` and `/`; a per-core register-pressure error.
+   Counterexamples: stepping a frequency by 1 MHz, scaling an amplitude by 0.5,
+   and `a -= 0.1;` followed by a comparison (the pulse is right, the comparison
+   wrong — verified in simulation). **In QD:** registers are `int`, `amp`,
+   `phase` or `time`; `+`, `-` and comparisons only between equal types; `*` and
+   `/` only between constants; a per-core register-pressure error.
 4. **Measurement is a pulse sequence; the result must be fetched.** The bit
    reaches the program only through the function processor (FPROC):
    `read_fproc`, `alu_fproc` or `branch_fproc`, after a compiler-inserted wait.
    Without that wait the hardware silently returns the previous result (verified
-   in simulation). Counterexample: `if (read(Q0) == 1) X180(Q0);` has no
-   translation. **Minimal extension:** `bit m = measure(Q0);` → `read` +
-   `read_fproc`; `if (measure(Q0) == 1)` → `read` + `branch_fproc`; derive the
-   host's `reads_per_shot` by counting measurements.
+   in simulation). Counterexample: active reset has no translation in the
+   original sketch, because `read(Q0)` yields nothing. **In QD:**
+   `m := measure(Q0);` lowers to `read` + `read_fproc`, and
+   `if measure(Q0) == 1 { X90(Q0); }` to `read` + `branch_fproc`. Deriving the
+   host's `reads_per_shot` by counting measurements is not yet in QD.
 5. **Wrong abstraction level: gates, calibrations and frames are missing.**
    Physicists write `X90(Q0)`, `CNOT(Q2, Q1)`; these resolve from the
    calibration database with per-use overrides (`passes.py:377-454`), and
    frequencies are named (`Q0.freq`). Phase lives in per-frequency frames:
    virtual-Z is folded at compile time unless bound to a register with
-   `bind_phase`, which is required inside a branch (`passes.py:632-641`).
-   **Minimal extension:** gate calls, `vz(q, φ)`, `frame`/`bind` declarations,
-   named frequencies, and `pulse(...)` kept as the low-level escape hatch.
+   `bind_phase`, which is required inside a branch (`passes.py:632-641`). **In
+   QD:** calibrated gate calls (`X90(Q0);`), named frequencies (`Q0.freq`), and
+   `pulse` as the low-level escape hatch; frames, explicit virtual-Z and
+   `bind_phase` are not in QD v0.
 
 **Is C-like the right model?** For the control skeleton yes; for timing no. The
 essential semantics are a statically scheduled, timed dataflow across cores,
@@ -208,7 +228,7 @@ sweep compiles to exactly the same 9 machine words as the hand-written IR. Code:
 \[code\]
 
 ```odin
-qubit Q0;
+qubit Q0, Q1, Q2;
 REP :: 100 us;                  // constant   name : type : value  or  name :: value
 tau : time = 0 us;              // register   name : type = value   (int, amp, phase, time)
 n := 0;
@@ -230,13 +250,13 @@ par { { measure(Q1); } { measure(Q2); } }   // explicit parallelism
 
 | Construct | Meaning | QubiC-IR |
 | --- | --- | --- |
-| `S1; S2` | S2 starts when every qubit S1 used is idle | `barrier(qubits(S1) ∪ qubits(S2))` |
-| `par { {B1} {B2} }` | branches start together; the next statement waits for the longest | barriers before and after; branches must use disjoint qubits |
-| `X : T : v` / `x : T = v` | compile-time constant / register | folded immediates / `declare` + `set_var` |
-| `do {} while c`, `for c {}`, `for i in a..<b {}`, `#unroll for` | post-test, guarded, counter, compile-time loops | `loop`, `branch_var` + `loop`, unrolled code |
-| `if measure(Q) == 1 {}`, `m := measure(Q)` | feedback on a measurement | `read` + `branch_fproc` / `read_fproc` |
-| `delay(tau)` with `tau : time` | runtime delay on every qubit | `alu sub` + new IR op `inc_qclk` (patch below) |
-| `name :: proc(...) {}` | always inlined | expanded in place |
+| `X90(Q0); X90(Q1);` | the second statement starts when every qubit the first used is idle | `barrier(Q0, Q1)` between them: the union of both statements' qubits |
+| `par { { X90(Q0); } { X90(Q1); } }` | branches start together; the next statement waits for the longest | barriers before and after; branches must use disjoint qubits |
+| `T1 : time : 10 us;` / `a : amp = 0.1;` | compile-time constant / register | folded immediates / `declare` + `set_var` |
+| `do { X90(Q0); } while n < 5;`, `for n < 5 { X90(Q0); }`, `for i in 0..<5 { X90(Q0); }`, `#unroll for t in [0 us, 10 us] { delay(t); }` | post-test, guarded, counter, compile-time loops | `loop`, `branch_var` + `loop`, unrolled code |
+| `if measure(Q0) == 1 { X90(Q0); }`, `m := measure(Q0);` | feedback on a measurement | `read` + `branch_fproc` / `read_fproc` |
+| `tau : time = 0 us;` then `delay(tau);` | runtime delay on every qubit | `alu sub` + new IR op `inc_qclk` (patch below) |
+| `pi_pulse :: proc(q: qubit) { X90(q); X90(q); }` | always inlined | expanded in place |
 
 Register and control-flow scopes are inferred by a fixed point: a register lives
 on every core whose pulses or conditions use it, and a loop or branch spans
@@ -260,13 +280,14 @@ hint)
 
 **Runtime delay: a QubiC compiler extension.** The hardware already supports a
 register-sourced `inc_qclk`, and the assembler accepts it; only the IR,
-scheduler and code generator lacked it. `patches/distproc-runtime-delay.patch`
-(about 40 added lines) adds IR instruction `IncQclk(var, scope)`. The scheduler
-treats it as a barrier plus one ALU instruction; the code generator emits
-`inc_qclk` with the register. Every core in scope shifts by the same amount, so
-the static schedule stays consistent, including across loop rewinds. QD always
-scopes it to every core of the program. `setup.sh` applies the patch to a copy;
-the QubiC repos are untouched. \[code\]
+scheduler and code generator lacked it.
+`patches/distproc-01-runtime-delay.patch` (about 40 added lines) adds IR
+instruction `IncQclk(var, scope)`. The scheduler treats it as a barrier plus one
+ALU instruction; the code generator emits `inc_qclk` with the register. Every
+core in scope shifts by the same amount, so the static schedule stays
+consistent, including across loop rewinds. QD always scopes it to every core of
+the program. `setup.sh` applies the patch to a copy; the QubiC repos are
+untouched. \[code\]
 
 **Verified on the processor RTL** (`rtl/qd_tb/run_demo.sh`, Verilator, one
 core). \[sim\]
@@ -335,13 +356,14 @@ trigger.
 Every listing below was produced by the real compiler and assembler for the
 ZCU216 example configuration; nothing is hand-written. Machine words are shown
 as 128-bit hex with my decoding on the right: `@n` is the word address, `#` an
-immediate, `rN` a register, `t` the trigger timestamp in 2 ns clocks. DSL lines
-use the revised syntax proposed above \[interp\].
+immediate, `rN` a register, `t` the trigger timestamp in 2 ns clocks. Each `QD`
+line is a complete QD program; compiling it reproduces the machine words shown
+(checked by `tools/check_doc_dsl.py`).
 
 ### Example 1 — integer variable
 
 ```
-DSL  int x = 42;
+QD   qubit Q0; x : int = 42;
 IR   {'name':'declare','var':'x','scope':['Q0'],'dtype':'int'}, {'name':'set_var','var':'x','value':42}
 ASM  phase_reset; declare_reg x:int; reg_alu in0=42 id0 in1=x out=x; done_stb
 @0 b0000000000000000000000000000000  pulse_reset
@@ -355,7 +377,7 @@ equal to the target (`compiler.py:251-254`).
 ### Example 2 — add two variables
 
 ```
-DSL  int a = 3; int b = 4; int c = a + b;
+QD   qubit Q0; a : int = 3; b : int = 4; c := a + b;
 IR   declare a,b,c; set_var a=3; set_var b=4; {'name':'alu','op':'add','lhs':'a','rhs':'b','out':'c'}
 @1 10000000030000000000000000000000  reg_alu_i  alu=id0 in0=#3 in1=r0 out=r0
 @2 10000000041100000000000000000000  reg_alu_i  alu=id0 in0=#4 in1=r1 out=r1
@@ -367,7 +389,7 @@ Registers follow declaration order (`assembler.py:207-216`).
 ### Example 3 — counter loop
 
 ```
-DSL  int i = 0; do { X90(Q0); i += 1; } while (5 > i);
+QD   qubit Q0; i : int = 0; do { X90(Q0); i += 1; } while i < 5;
 IR   declare i; set_var i=0; {'name':'loop','cond_lhs':5,'alu_cond':'ge','cond_rhs':'i','scope':['Q0'],
        'body':[{'name':'X90','qubit':['Q0']}, {'name':'alu','op':'add','lhs':1,'rhs':'i','out':'i'}]}
 @1 10000000000000000000000000000000  reg_alu_i   alu=id0 in0=#0 in1=r0 out=r0
@@ -384,7 +406,9 @@ calibration database.
 ### Example 4 — shaped pulse
 
 ```
-DSL  pulse(Q0.qdrv, freq=Q0.freq, phase=π/2, amp=0.5, width=32 ns, env=cos_edge_square(0.25));
+QD   qubit Q0;
+     pulse(Q0.qdrv, freq = Q0.freq, phase = pi / 2, amp = 0.5, width = 32 ns,
+           env = cos_edge_square(0.25));
 IR   {'name':'pulse','dest':'Q0.qdrv','freq':'Q0.freq','phase':1.5708,'amp':0.5,'twidth':32e-9,
       'env':{'env_func':'cos_edge_square','paradict':{'ramp_fraction':0.25}}}
 @1 900804000240004008fffe00000000a0  pulse_write_trig t=5 cfg=0 amp=16383 freq=0 phase=32768 env_word=65536
@@ -397,7 +421,7 @@ IR   {'name':'pulse','dest':'Q0.qdrv','freq':'Q0.freq','phase':1.5708,'amp':0.5,
 ### Example 5 — measurement
 
 ```
-DSL  measure(Q0);
+QD   qubit Q0; measure(Q0);
 IR   {'name':'read','qubit':['Q0']}
 @1 9008fa0002000040080a1220000000a0  pulse_write_trig t=5   cfg=1 amp=644   phase=0     env_word=4096000  (Q0.rdrv, 2 µs drive)
 @2 9008fa00023c53c009fffec000002620  pulse_write_trig t=305 cfg=6 amp=32767 phase=30887 env_word=4096000  (Q0.rdlo, demod window)
@@ -411,7 +435,7 @@ instruction returns a value.
 ### Example 6 — branch on a measurement
 
 ```
-DSL  if (measure(Q0) == 1) { X90(Q0); X90(Q0); }  measure(Q0);
+QD   qubit Q0; if measure(Q0) == 1 { X90(Q0); X90(Q0); } measure(Q0);
 IR   read; {'name':'branch_fproc','cond_lhs':1,'alu_cond':'eq','func_id':'Q0.meas','scope':['Q0'],
             'true':[X90, X90], 'false':[]}; read
 @1  9008fa0002000040080a1220000000a0  pulse_write_trig t=5    (rdrv)
@@ -431,7 +455,10 @@ IR   read; {'name':'branch_fproc','cond_lhs':1,'alu_cond':'eq','func_id':'Q0.mea
 ### Example 7 — two qubits
 
 ```
-DSL  X90(Q1); X90(Q2); CNOT(Q2, Q1); measure(Q1); measure(Q2);
+QD   qubit Q1, Q2;
+     par { { X90(Q1); } { X90(Q2); } }
+     CNOT(Q2, Q1);
+     par { { measure(Q1); } { measure(Q2); } }
 core 1 (qubit_command1)
 @1 900803000200004008f68600000000a0  t=5   Q1.qdrv X90
 @2 90080400320000400848ee00000014e0  t=167 Q1.qdrv CNOT part 2
@@ -440,24 +467,26 @@ core 1 (qubit_command1)
 core 2 (qubit_command2)
 @1 900803000200004008ab5e00000000a0  t=5   Q2.qdrv X90
 @2 900825803242b5c018996e0000000220  t=17  Q2.qdrv CNOT pulse at freq=1 (Q1's frequency), phase=34155, 300 ns
-@3 9008fa0002000040080a2220000014e0  t=167 Q2.rdrv
-@4 9008fa0002b38d4009fffec000003a60  t=467 Q2.rdlo
+@3 9008fa0002000040080a2220000016e0  t=183 Q2.rdrv
+@4 9008fa0002b38d4009fffec000003c60  t=483 Q2.rdlo
 ```
 
 Two independent streams with no synchronizing instruction. The CNOT barrier
-aligns both cores at its start (t = 17); afterwards each qubit runs as early as
-possible, so the readouts are skewed (167 vs 183). Adding `barrier(Q1, Q2)`
-before the reads moves both to t = 183 (verified).
+aligns both cores at its start (t = 17), and QD's second `par` aligns the
+readouts at t = 183. In the raw IR without that alignment, each qubit runs as
+early as possible after the CNOT and the readouts are skewed: Q2 at 167, Q1 at
+183 (verified).
 
 ### Example 7b — "sequential" raw pulses
 
 ```
-pulse(Q0.qdrv,…); pulse(Q1.qdrv,…); pulse(Q0.rdrv,…);
+IR   pulse Q0.qdrv, pulse Q1.qdrv, pulse Q0.rdrv   (written in this order)
 core 0: @1 t=5 Q0.qdrv   @2 t=8 Q0.rdrv        core 1: @1 t=5 Q1.qdrv
 ```
 
 All three start together. Pulses on the same core are 3 clocks apart because one
-core issues at most one pulse word per 3 clocks.
+core issues at most one pulse word per 3 clocks. In QD the same three statements
+run one after another; `par` makes them simultaneous.
 
 ### Example 0 — the original amplitude sweep, verbatim IR
 
