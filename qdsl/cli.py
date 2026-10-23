@@ -11,7 +11,7 @@ from .diag import Diagnostics, QdError
 from .lower import Lowering
 from .sema import Sema
 from .syntax import parse
-from .target import DEFAULT_CHANNELS, DEFAULT_QCHIP, Target
+from .target import DEFAULT_CHANNELS, DEFAULT_QCHIP, ConfigError, Target
 
 
 class _QubicNoise(logging.Filter):
@@ -51,7 +51,11 @@ def main(argv=None) -> int:
     quiet_qubic()
 
     source = open(a.file).read()
-    target = Target(a.qchip, a.channels)
+    try:
+        target = Target(a.qchip, a.channels)
+    except ConfigError as e:
+        print(e, file=sys.stderr)
+        return 1
     diag = Diagnostics(a.file, source)
     try:
         ir, diag = front_end(source, a.file, target)

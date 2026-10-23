@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from .diag import QdError
 from .sema import SHIFT_REG, MClassical, MIf, MLoop, MPar, MTimed, Sema
-from .target import N_REGS, Target
+from .target import N_REGS, CoreId, Target
 
 
 class Lowering:
@@ -132,9 +132,10 @@ class Lowering:
                       'registers need a core: declare at least one qubit')
 
     def _check_registers(self):
-        per_core: dict[int, list[str]] = {}
+        # QubiC replicates a register on every core holding a channel of its scope's qubits
+        per_core: dict[CoreId, list[str]] = {}
         for v, s in self.var_scope.items():
-            for core in {self.t.core_of(q) for q in s}:
+            for core in self.t.cores.cores_of(*s):
                 per_core.setdefault(core, []).append(v)
         for core, vs in sorted(per_core.items()):
             if len(vs) > N_REGS:
@@ -163,11 +164,12 @@ class Lowering:
         return inner
 
     def _check_par(self, n: MPar, enclosing: set):
+        fps = [self._branch_fp(b, enclosing) for b in n.branches]
         seen: dict[str, int] = {}
-        for i, b in enumerate(n.branches):
-            for q in self._branch_fp(b, enclosing):
+        for i, fp in enumerate(fps):
+            for q in fp:
                 if q in seen:
-                    hint = ('branches must use disjoint qubits: they run on separate cores.\n'
+                    hint = ('branches must use disjoint qubits and disjoint processor cores.\n'
                             'Two pulses on one core start 3 clocks apart; on one channel they serialize.')
                     for j in (seen[q], i):
                         bj = n.branches[j]
@@ -177,6 +179,24 @@ class Lowering:
                                      f"whose condition must be evaluated on {q}'s core too.")
                     raise QdError(n.pos, f'par branches {seen[q] + 1} and {i + 1} both use {q}', hint)
                 seen[q] = i
+        owner: dict[CoreId, int] = {}
+        for i, fp in enumerate(fps):
+            for core in sorted(self.t.cores.cores_of(*fp)):
+                if core in owner:
+                    j = owner[core]
+                    on = lambda k: ', '.join(sorted(q for q in fps[k] if core in self.t.cores.cores_of(q)))
+                    raise QdError(n.pos, f'par branches {j + 1} and {i + 1} both run on processor core {core} '
+                                  f'(branch {j + 1}: {on(j)}; branch {i + 1}: {on(i)})',
+                                  'one core issues one instruction at a time, so the branches could not start '
+                                  'together:\npulses on one core are at least 3 clocks apart. '
+                                  'Put the branches on qubits of different cores.')
+                owner[core] = i
+
+    def _check_fproc(self, func_id: str, readers: set, pos):
+        q = func_id.removesuffix('.meas')
+        problem = self.t.cores.fproc_problem(q, self.t.cores.cores_of(*readers))
+        if problem:
+            raise QdError(pos, f'measurement feedback on {q} could read the wrong result', problem)
 
     # ------------------------------------------------------------ emission
     def emit(self) -> list[dict]:
@@ -195,6 +215,8 @@ class Lowering:
         out, prev = [], None
         for n in nodes:
             if isinstance(n, MClassical):
+                if n.ir['name'] == 'read_fproc':      # runs on every core of the register's scope
+                    self._check_fproc(n.ir['func_id'], self.var_scope[n.ir['var']], n.pos)
                 out.append(dict(n.ir))
                 continue
             fp = self.footprint(n, enclosing)
@@ -220,6 +242,7 @@ class Lowering:
             then = [self._barrier(fp)] + self._seq(n.then, fp) if n.then else []
             els = [self._barrier(fp)] + self._seq(n.els, fp) if n.els else []
             if n.func_id:
+                self._check_fproc(n.func_id, fp, n.pos)
                 return [{'name': 'branch_fproc', 'cond_lhs': n.lhs, 'alu_cond': n.op, 'func_id': n.func_id,
                          'scope': scope, 'true': then, 'false': els}]
             return [{'name': 'branch_var', 'cond_lhs': n.lhs, 'alu_cond': n.op, 'cond_rhs': n.rhs,

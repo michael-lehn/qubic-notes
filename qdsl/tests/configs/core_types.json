@@ -1,0 +1,76 @@
+{
+  "fpga_clk_freq": 500000000.0,
+  "Q0.qdrv": {
+    "core_ind": 0,
+    "elem_ind": 0,
+    "core_name": "qubit",
+    "env_mem_name": "qdrv_env_qubit_0",
+    "freq_mem_name": "qdrv_freq_qubit_0",
+    "elem_params": {
+      "interp_ratio": 4,
+      "samples_per_clk": 16
+    },
+    "elem_type": "rf"
+  },
+  "Q0.rdrv": {
+    "core_ind": 0,
+    "elem_ind": 1,
+    "core_name": "qubit",
+    "env_mem_name": "rdrv_env_qubit_0",
+    "freq_mem_name": "rdrv_freq_qubit_0",
+    "elem_params": {
+      "interp_ratio": 16,
+      "samples_per_clk": 16
+    },
+    "elem_type": "rf"
+  },
+  "Q0.rdlo": {
+    "core_ind": 0,
+    "elem_ind": 2,
+    "core_name": "qubit",
+    "env_mem_name": "rdlo_env_qubit_0",
+    "freq_mem_name": "rdlo_freq_qubit_0",
+    "elem_params": {
+      "interp_ratio": 4,
+      "samples_per_clk": 4
+    },
+    "acc_mem_name": "rdlo_acc_qubit_0",
+    "elem_type": "rf_mix"
+  },
+  "Q1.qdrv": {
+    "core_ind": 0,
+    "elem_ind": 0,
+    "core_name": "aux",
+    "env_mem_name": "qdrv_env_aux_0",
+    "freq_mem_name": "qdrv_freq_aux_0",
+    "elem_params": {
+      "interp_ratio": 4,
+      "samples_per_clk": 16
+    },
+    "elem_type": "rf"
+  },
+  "Q2.qdrv": {
+    "core_ind": 10,
+    "elem_ind": 0,
+    "core_name": "qubit",
+    "env_mem_name": "qdrv_env_qubit_10",
+    "freq_mem_name": "qdrv_freq_qubit_10",
+    "elem_params": {
+      "interp_ratio": 4,
+      "samples_per_clk": 16
+    },
+    "elem_type": "rf"
+  },
+  "Q3.qdrv": {
+    "core_ind": 0,
+    "elem_ind": 0,
+    "core_name": "qubit1",
+    "env_mem_name": "qdrv_env_qubit1_0",
+    "freq_mem_name": "qdrv_freq_qubit1_0",
+    "elem_params": {
+      "interp_ratio": 4,
+      "samples_per_clk": 16
+    },
+    "elem_type": "rf"
+  }
+}

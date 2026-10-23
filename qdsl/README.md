@@ -67,6 +67,28 @@ tau += 10 us;
 Register scopes are inferred by a fixed point over pulses, conditions and ALU
 operations (see the header of `lower.py`).
 
+## Processor cores
+
+QD maps every object to physical processor cores from the channel configuration
+(`cores.py`). A core is `CoreId(board_name, core_name, core_ind)`: the assembler
+programs it through instruction memory `{core_name}_command{core_ind}` (or
+`command{core_ind}`) on `board_name`. `core_name` is a core type shared by many
+cores; `null` and `""` denote the same core.
+
+```python
+t = Target(channels_path=...)
+t.cores.cores_of('Q0')               # C(Q0): cores of all of Q0's channels
+t.cores.cores_of('Q0.qdrv', 'Q1')    # union over objects
+t.cores.channels_of_core(core)       # channels of one physical core
+t.cores.qubits_of_core(core)
+t.cores.proc_grouping()              # QubiC proc_grouping, one tuple per CoreId
+t.cores.qubit_scoper()               # QubiC qubit -> channels, from the config
+```
+
+The backend hands QubiC the configuration-derived grouping and qubit mapping
+instead of QubiC's name patterns. The configuration is validated when `Target`
+is created (`ConfigError`); `t.cores.notes` lists non-fatal findings.
+
 ## Checks
 
 | Check | Why |
@@ -78,7 +100,11 @@ operations (see the header of `lower.py`).
 | ordering compares on `phase` | phase wraps modulo 2π |
 | `<=`, `>=`, `!=` in loop conditions | hardware has `<`, `>`, `==` only and loops cannot negate (int + constant is rewritten) |
 | `par` branches sharing a qubit, including via a shared register | IR silently serializes or skews them |
-| more than 16 registers on a core | assembler error far from the source |
+| more than 16 registers on a physical core (counted per `CoreId`) | assembler error far from the source |
+| `par` branches on different qubits that share a processor core | they cannot start together |
+| channel not in the channel configuration | late QubiC error |
+| measurement feedback where FPROC cannot identify the result (no `Qn.meas`, or several measuring cores share a `core_ind`) | wrong or no result |
+| malformed or ambiguous channel configuration (missing or ill-typed fields, duplicate `elem_ind` per core, `elem_ind` outside 0..3, one core spelled with `null` and `""`, memory written by two channels) | late assembler exceptions or silent misgrouping |
 | one `+`/`-` per runtime statement | single ALU op per instruction |
 | instruction memory > 8192 words per core | gateware limit |
 | runtime delay register that may decrease | a negative delay puts the next trigger in the past; the core hangs (RTL test t3) |

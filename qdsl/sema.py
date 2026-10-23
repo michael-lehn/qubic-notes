@@ -158,6 +158,9 @@ class Sema:
         if isinstance(e, A.Attr):
             q = self._qubit(A.Name(e.base, e.pos), e.pos)
             if e.attr in CHANNELS:
+                if not self.t.has_channel(f'{q}.{e.attr}'):
+                    raise QdError(e.pos, f"channel '{q}.{e.attr}' is not in the channel configuration",
+                                  f'{q} has: ' + ', '.join(self.t.cores.channels_of_qubit(q)))
                 return CVal('channel', f'{q}.{e.attr}')
             if e.attr in self.t.qubit_attrs(q):
                 return CVal('freq', f'{q}.{e.attr}')       # named, resolved from the calibration
@@ -364,6 +367,7 @@ class Sema:
             if t != 'int':
                 raise QdError(pos, f"measure() yields an int; '{dst}' is {t}")
             q = self._measure_qubit(e)
+            self._fproc_check(q, e.pos)
             return [self._read(q, pos),
                     MClassical({'name': 'read_fproc', 'func_id': f'{q}.meas', 'var': dst}, {dst}, set(), pos)]
         op = self.operand(e, t, pos)
@@ -415,6 +419,7 @@ class Sema:
             if all(meas):
                 raise QdError(c.pos, 'cannot compare two measurements')
             q = self._measure_qubit(sides[meas.index(True)])
+            self._fproc_check(q, c.pos)
             other = self.operand(sides[1 - meas.index(True)], 'int', c.pos)
             if other is None:
                 raise QdError(c.pos, 'compare a measurement with an int constant or register')
@@ -503,6 +508,15 @@ class Sema:
         if not self.t.has_gate('read', [q]):
             raise QdError(pos, f'no calibrated read for {q}')
         return MTimed('gate', {'name': 'read', 'qubit': [q]}, frozenset([q]), pos)
+
+    def _fproc_check(self, q: str, pos: Pos):
+        """Measurement feedback: the result must be addressable through FPROC."""
+        if f'{q}.meas' not in self.t.fpga.fproc_channels:
+            raise QdError(pos, f'measurement feedback on {q} is not available: FPROC has no channel {q}.meas',
+                          'distproc.hwconfig.FPGAConfig defines Q0.meas ... Q15.meas (hwconfig.py:101-103)')
+        problem = self.t.cores.fproc_problem(q)
+        if problem:
+            raise QdError(pos, f'measurement feedback on {q} is ambiguous or unavailable', problem)
 
     def _measure_qubit(self, c: A.Call) -> str:
         if len(c.args) != 1 or c.args[0].name:

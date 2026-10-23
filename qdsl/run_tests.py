@@ -94,6 +94,9 @@ def main() -> int:
         else:
             print(f'  FAIL  {f.name}: accepted, expected {expect!r}')
         failures += 1
+    print('cores')
+    from . import test_cores
+    failures += test_cores.main()
     print('PASS' if not failures else f'{failures} FAILURE(S)')
     return 1 if failures else 0
 

@@ -34,8 +34,12 @@ class Build:
 
 
 def build(ir: list, target: Target) -> Build:
-    passes = cm.get_passes(target.fpga, target.qchip)
-    comp = cm.Compiler(copy.deepcopy(ir))
+    # QubiC defaults to name patterns ('{qubit}.qdrv', ...) for both mappings; use the
+    # channel configuration instead, so QubiC's cores are QD's CoreIds.
+    grouping = target.cores.proc_grouping()
+    passes = cm.get_passes(target.fpga, target.qchip, qubit_grouping=target.cores.qubit_scoper(),
+                           proc_grouping=grouping)
+    comp = cm.Compiler(copy.deepcopy(ir), grouping)
     comp.run_ir_passes(passes)
     asm = comp.compile()
     exe = am.GlobalAssembler(asm, target.channel_configs, rfhw.elemconfig_classfactory).get_assembled_program()

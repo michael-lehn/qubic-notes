@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import inspect
+import json
 import os
 import re
 from dataclasses import dataclass, field
@@ -11,6 +12,8 @@ import distproc.compiler  # noqa: F401  (loads importlib.metadata, which qubitco
 import distproc.hwconfig as dhw
 import qubitconfig.qchip as qc
 import qubitconfig.envelope_pulse as envelope_pulse
+
+from .cores import ConfigError, CoreId, CoreModel  # noqa: F401  (re-exported)
 
 QUBIC_ROOT = os.environ.get('QUBIC_ROOT', str(Path(__file__).resolve().parents[1] / 'vendor'))
 DEFAULT_QCHIP = f'{QUBIC_ROOT}/software/examples/qubitcfg.json'
@@ -30,7 +33,12 @@ class Target:
 
     def __post_init__(self):
         self.qchip = qc.QChip(self.qchip_path)
-        self.channel_configs = dhw.load_channel_configs(self.channels_path)
+        try:
+            raw = json.load(open(self.channels_path))
+        except (OSError, json.JSONDecodeError) as e:
+            raise ConfigError(self.channels_path, [f'cannot read the channel configuration: {e}']) from None
+        self.cores = CoreModel.from_config(raw, self.channels_path)     # validates; raises ConfigError
+        self.channel_configs = dhw.load_channel_configs(raw)
         self._vz_cache: dict[str, bool] = {}
         self.envelopes = {
             name: [p for p in inspect.signature(fn).parameters if p not in ('twidth', 'dt')]
@@ -38,7 +46,10 @@ class Target:
             if {'twidth', 'dt'} <= set(inspect.signature(fn).parameters)}
 
     def has_qubit(self, q: str) -> bool:
-        return q in self.qchip.qubits and f'{q}.qdrv' in self.channel_configs
+        return q in self.qchip.qubits and self.cores.is_qubit(q) and self.cores.is_channel(f'{q}.qdrv')
+
+    def has_channel(self, channel: str) -> bool:
+        return self.cores.is_channel(channel)
 
     def qubit_attrs(self, q: str) -> list[str]:
         return [a for a in vars(self.qchip.qubits[q]) if not a.startswith('_')]
@@ -58,6 +69,3 @@ class Target:
         prefix = ''.join(qubits)
         return sorted(g[len(prefix):] for g in self.qchip.gates
                       if g.startswith(prefix) and not re.match(r'Q\d', g[len(prefix):]))
-
-    def core_of(self, q: str) -> int:
-        return self.channel_configs[f'{q}.qdrv'].core_ind
