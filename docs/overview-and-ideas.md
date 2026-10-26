@@ -12,7 +12,7 @@ The document has two parts, kept strictly apart:
 
 - **Part I: Implemented and verified.** Every QD program in it compiles with
   the stated channel configuration (`python tools/check_doc_dsl.py
-  docs/interview-overview.md`). Every listing tagged **[compiler output]** is
+  docs/overview-and-ideas.md`). Every listing tagged **[compiler output]** is
   verbatim output of the current compiler. **[RTL]** marks results of RTL
   simulation in this repository.
 - **Part II: Proposed extensions.** Design ideas. Nothing in Part II exists in
@@ -23,7 +23,7 @@ Reading time is about 15 minutes; Appendix A lists the verification runs.
 
 ---
 
-## Five-Minute Interview Walkthrough
+## Five-Minute Walkthrough
 
 1. **Why QD.** QubiC programs are lists of IR dictionaries. The IR has no
    notion of "this statement, then that one": pulses on different channels
@@ -490,7 +490,7 @@ iteration, same binary) the loop ends at 1328 and X90(Q1) starts at 1419.
 ## 8. `parallel` with a join (implemented)
 
 `parallel { A | B }` is implemented with exactly the semantics proposed in
-the interview brief: the branches may overlap, a common start is not
+the design brief: the branches may overlap, a common start is not
 promised, and the statement after the block starts only after every branch
 has completed. Branches must use disjoint qubits and must not share a register
 that one of them writes.
@@ -819,7 +819,7 @@ barrier controller in the gateware and the scheduler change in C.
 
 ---
 
-## Likely Interview Questions
+## Technical Questions and Answers
 
 **1. Why not just synchronize the cores at every statement?**
 Because the hardware cannot today (`sync` never releases), and because it
@@ -900,7 +900,7 @@ Commands run from `~/git/qubic-notes` after `source env.sh`, 2026-10-26:
 
 - `python -m qdsl.run_tests`: PASS.
 - `python tools/check_doc_dsl.py README.md docs/reference.md qdsl/README.md
-  docs/interview-overview.md`: all snippets valid; the `odin` blocks of this
+  docs/overview-and-ideas.md`: all snippets valid; the `odin` blocks of this
   document are compiled with the configuration named in their
   `// compile with --channels` comment.
 - `rtl/isa_tb`, `rtl/fproc_tb` (`make`): 8/8 and 1/1 tests pass; the RESULT
