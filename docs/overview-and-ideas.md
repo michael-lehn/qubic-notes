@@ -379,6 +379,41 @@ The join "after both branches" exists only because the compiler computed the
 number 17 and wrote it into core 2's program. This is static scheduling; it
 works because every duration is known at compile time.
 
+### Design question: What should `parallel` guarantee?
+
+The two examples above compile from the same `parallel` block, yet they give
+different things. That raises the question of what the block should promise.
+The RTL results show that three properties are easy to confuse, and they are
+not equivalent guarantees:
+
+- **Overlapping physical execution.** Both wirings give it. On the shared core
+  the pulses occupy `[12, 24)` and `[15, 27)`. They overlap for 9 clocks even
+  though their pulse words are issued 3 clocks apart.
+- **Simultaneous start times.** Only the three-core wiring gives it (both at
+  cycle 12). Even there, it happens because the compiler chose it; the language
+  does not promise it (§8).
+- **Independent instruction streams on different processor cores.** Only the
+  three-core wiring gives it. On one core, both branches are interleaved into a
+  single stream.
+
+Two possible semantics:
+
+1. **Permissive parallelism.** Branches may overlap, but the compiler is free
+   to stagger or serialize them. Both examples are valid. This is what QD
+   implements today (§8).
+2. **Strict parallelism.** `parallel` carries a real execution guarantee. If
+   the target cannot meet it, compilation fails instead of silently
+   serializing the branches.
+
+My current preference is the strict reading. I want `parallel` to state an
+actual execution requirement, not just permission to run concurrently. But
+strictness needs a precise rule saying *which* guarantee is required. For
+example, the shared-core example is rejected only under a rule such as "each
+`parallel` branch must run on its own processor core". That is one possible
+design choice, not a proven hardware necessity: the shared core already
+produces overlapping pulses. A rule based on start times or on overlap would
+draw the line somewhere else. The question is open.
+
 ## 7. A runtime loop followed by another core (example 5)
 
 This is the problem that motivated most of the sequencing work.
