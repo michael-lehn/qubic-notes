@@ -1,0 +1,3 @@
+// expect: par was replaced by  parallel
+qubit Q0, Q1;
+par { { X90(Q0); } { X90(Q1); } }

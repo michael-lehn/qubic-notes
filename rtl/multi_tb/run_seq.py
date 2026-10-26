@@ -2,9 +2,10 @@
 
 Each case compiles a QD program, runs it on multicore_top (forcing the measurement bits where
 a loop depends on them), turns every strobe into a pulse interval [start, start + length) on its
-channel, and checks that every pulse of one group ends before any pulse of the next group
-starts. It also checks that no timed instruction was reached after its timestamp (slack >= 0)
-and that every core finished.
+channel, and checks each (before, after) pair: every selected pulse of `before` ends before any
+selected pulse of `after` starts. A selector is a channel (all its pulses) or 'channel@k' (its
+k-th pulse; negative k counts from the end). It also checks that no timed instruction was
+reached after its timestamp (slack >= 0) and that every core finished.
 
     source env.sh && python rtl/multi_tb/run_seq.py [CASE ...]
 """
@@ -31,7 +32,7 @@ N_CORES = 3
 class Case:
     name: str
     src: str
-    order: list                      # groups of channels, e.g. [['Q0.qdrv', 'Q0.rdrv'], ['Q1.qdrv']]
+    order: list                      # (before, after) selector lists, e.g. [(['Q0.qdrv'], ['Q1.qdrv'])]
     meas: str = ''                   # QD_MEAS
     config: str | None = None        # fixture in qdsl/tests/configs
     counts: dict = field(default_factory=dict)   # expected number of pulses per channel
@@ -55,16 +56,46 @@ do {
 X90(Q1);
 '''
 
+Q0_ALL = ['Q0.qdrv', 'Q0.rdrv', 'Q0.rdlo']
+
+PAR3 = 'qubit Q0, Q1, Q2;\nparallel {\n    X90(Q0);\n|\n    X90(Q1);\n}\nX90(Q2);\n'
+
 CASES = [
-    Case('loop_meas_two_cores', LOOP_MEAS, [['Q0.qdrv', 'Q0.rdrv', 'Q0.rdlo'], ['Q1.qdrv']], '0:1,1,0',
+    # a runtime loop, then another qubit
+    Case('loop_meas_two_cores', LOOP_MEAS, [(Q0_ALL, ['Q1.qdrv'])], '0:1,1,0',
          counts={'Q0.qdrv': 3, 'Q0.rdlo': 3, 'Q1.qdrv': 1}),
-    Case('loop_meas_two_cores_once', LOOP_MEAS, [['Q0.qdrv', 'Q0.rdrv', 'Q0.rdlo'], ['Q1.qdrv']], '0:0',
+    Case('loop_meas_two_cores_once', LOOP_MEAS, [(Q0_ALL, ['Q1.qdrv'])], '0:0',
          counts={'Q0.qdrv': 1, 'Q1.qdrv': 1}),
-    Case('loop_meas_one_core', LOOP_MEAS, [['Q0.qdrv', 'Q0.rdrv', 'Q0.rdlo'], ['Q1.qdrv']], '0:1,1,0',
+    Case('loop_meas_one_core', LOOP_MEAS, [(Q0_ALL, ['Q1.qdrv'])], '0:1,1,0',
          'shared_core', counts={'Q0.qdrv': 3, 'Q1.qdrv': 1}),
-    Case('loop_count_two_cores', LOOP_COUNT, [['Q0.qdrv'], ['Q1.qdrv']], counts={'Q0.qdrv': 5, 'Q1.qdrv': 1}),
-    Case('loop_count_one_core', LOOP_COUNT, [['Q0.qdrv'], ['Q1.qdrv']], config='shared_core',
+    Case('loop_count_two_cores', LOOP_COUNT, [(['Q0.qdrv'], ['Q1.qdrv'])], counts={'Q0.qdrv': 5, 'Q1.qdrv': 1}),
+    Case('loop_count_one_core', LOOP_COUNT, [(['Q0.qdrv'], ['Q1.qdrv'])], config='shared_core',
          counts={'Q0.qdrv': 5, 'Q1.qdrv': 1}),
+    # parallel { A | B }, then a join
+    Case('par_three_cores', PAR3, [(['Q0.qdrv', 'Q1.qdrv'], ['Q2.qdrv'])]),
+    Case('par_one_core', PAR3, [(['Q0.qdrv', 'Q1.qdrv'], ['Q2.qdrv'])], config='one_core'),
+    Case('par_pair_core', PAR3, [(['Q0.qdrv', 'Q1.qdrv'], ['Q2.qdrv'])], config='pair_core'),
+    Case('par_durations', 'qubit Q0, Q1, Q2; parallel { X90(Q0); X90(Q0); X90(Q0); | X90(Q1); } X90(Q2);',
+         [(['Q0.qdrv@0'], ['Q0.qdrv@1']), (['Q0.qdrv@1'], ['Q0.qdrv@2']), (['Q0.qdrv', 'Q1.qdrv'], ['Q2.qdrv'])],
+         counts={'Q0.qdrv': 3}),
+    Case('par_nested', 'qubit Q0, Q1, Q2; parallel { parallel { X90(Q0); | X90(Q1); } X90(Q0); | X90(Q2); } X90(Q1);',
+         [(['Q0.qdrv@0', 'Q1.qdrv@0'], ['Q0.qdrv@1']), (['Q0.qdrv', 'Q1.qdrv@0', 'Q2.qdrv'], ['Q1.qdrv@1'])]),
+    Case('par_nested_one_core', 'qubit Q0, Q1, Q2; parallel { parallel { X90(Q0); | X90(Q1); } X90(Q0); '
+         '| X90(Q2); } X90(Q1);',
+         [(['Q0.qdrv@0', 'Q1.qdrv@0'], ['Q0.qdrv@1']), (['Q0.qdrv', 'Q1.qdrv@0', 'Q2.qdrv'], ['Q1.qdrv@1'])],
+         config='one_core'),
+    # runtime loops inside parallel branches
+    Case('par_loop_and_static_then_join', 'qubit Q0, Q1, Q2; m := 1;\n'
+         'parallel { do { X90(Q0); m = measure(Q0); } while m == 1; | X90(Q1); }\nX90(Q2);',
+         [(Q0_ALL + ['Q1.qdrv'], ['Q2.qdrv'])], '0:1,1,0', counts={'Q0.qdrv': 3}),
+    Case('par_loops_serialized', 'qubit Q0, Q1; m0 := 1; m1 := 1;\n'
+         'parallel { do { X90(Q0); m0 = measure(Q0); } while m0 == 1; '
+         '| do { X90(Q1); m1 = measure(Q1); } while m1 == 1; }\nmeasure(Q1);',
+         [(Q0_ALL + ['Q1.qdrv', 'Q1.rdlo@-2'], ['Q1.rdrv@-1'])], '0:1,0;1:1,1,0',
+         counts={'Q0.qdrv': 2, 'Q1.qdrv': 3, 'Q1.rdrv': 4}),
+    Case('par_loops_one_core', 'qubit Q0, Q1; n := 0; k := 0;\n'
+         'parallel { do { X90(Q0); n += 1; } while n < 3; | do { X90(Q1); k += 1; } while k < 2; }\nmeasure(Q0);',
+         [(['Q0.qdrv', 'Q1.qdrv'], ['Q0.rdrv'])], config='shared_core', counts={'Q0.qdrv': 3, 'Q1.qdrv': 2}),
 ]
 
 
@@ -111,6 +142,19 @@ def intervals(r: dict, lengths: dict, chan: dict) -> list[tuple[int, int, str]]:
     return sorted(out)
 
 
+def select(iv: list, selectors: list) -> list[tuple[int, int]]:
+    out = []
+    for sel in selectors:
+        ch, _, k = sel.partition('@')
+        pulses = [(s, e) for s, e, d in iv if d == ch]
+        if k:
+            if -len(pulses) <= int(k) < len(pulses):
+                out.append(pulses[int(k)])
+        else:
+            out += pulses
+    return out
+
+
 def check(c: Case, verbose=True) -> bool:
     binary, lengths, chan = compile_case(c)
     r = simulate(binary, f'seq_{c.name}', c.meas)
@@ -122,9 +166,9 @@ def check(c: Case, verbose=True) -> bool:
         if got != n:
             ok = False
             notes.append(f'{ch}: {got} pulses, expected {n}')
-    for a, b in zip(c.order, c.order[1:]):
-        ea = max((e for _, e, d in iv if d in a), default=None)
-        sb = min((s for s, _, d in iv if d in b), default=None)
+    for a, b in c.order:
+        ea = max((e for _, e in select(iv, a)), default=None)
+        sb = min((s for s, _ in select(iv, b)), default=None)
         if ea is None or sb is None:
             ok = False
             notes.append(f'missing pulses for {a} or {b}')

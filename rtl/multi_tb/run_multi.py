@@ -72,7 +72,7 @@ def main() -> int:
     x1, x2 = strobes(r, 1, QDRV)[0], strobes(r, 2, QDRV)[0]
     rd1, rd2 = strobes(r, 1, RDRV)[0], strobes(r, 2, RDRV)[0]
     good &= report(x1['cycle'] == x2['cycle'], 'parallel X90s fire in the same clock', f"cycle {x1['cycle']} / {x2['cycle']}")
-    good &= report(rd1['cycle'] == rd2['cycle'], 'par readout fires in the same clock', f"cycle {rd1['cycle']} / {rd2['cycle']}")
+    good &= report(rd1['cycle'] == rd2['cycle'], 'parallel readouts fire in the same clock', f"cycle {rd1['cycle']} / {rd2['cycle']}")
 
     print('mc_feedback.qd, 3 shots, Q0 measures 1, 0, 1: cross-core feedback')
     r = simulate(emit('mc_feedback', *compile_qd('mc_feedback', 'mc_feedback.qd')), 'mc_feedback', 3, '1,1;-1,1;1,1')

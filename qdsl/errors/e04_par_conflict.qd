@@ -1,6 +1,7 @@
-// expect: par branches 1 and 2 both use Q0
+// expect: parallel branches 1 and 2 both use Q0
 qubit Q0;
-par {
-    { X90(Q0); }
-    { measure(Q0); }
+parallel {
+    X90(Q0);
+|
+    measure(Q0);
 }

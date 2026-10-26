@@ -1,7 +1,0 @@
-// expect: through register(s) n
-qubit Q1, Q2;
-n : int = 0;
-par {
-    { X90(Q1); if n == 2 { X90(Q1); } }
-    { X90(Q2); if n == 3 { X90(Q2); } }
-}

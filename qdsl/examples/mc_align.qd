@@ -1,6 +1,7 @@
 // Two cores, no runtime synchronization: parallel X90s, a CNOT across cores,
-// and an aligned readout. Cores agree only through static timestamps.
+// and two readouts. Cores agree only through static timestamps; the schedule
+// starts both branches of each parallel block in the same clock.
 qubit Q1, Q2;
-par { { X90(Q1); } { X90(Q2); } }
+parallel { X90(Q1); | X90(Q2); }
 CNOT(Q2, Q1);
-par { { measure(Q1); } { measure(Q2); } }
+parallel { measure(Q1); | measure(Q2); }

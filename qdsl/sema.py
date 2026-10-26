@@ -85,7 +85,7 @@ class MLoop:                       # post-test loop: body runs, then continues w
 
 
 @dataclass
-class MPar:
+class MParallel:                   # independent branches; the end is a join
     branches: list
     pos: Pos
 
@@ -746,8 +746,8 @@ class Sema:
                 self.env.pop()
         return out
 
-    def _Par(self, s: A.Par):
-        return [MPar([self.block(b) for b in s.branches], s.pos)]
+    def _Parallel(self, s: A.Parallel):
+        return [MParallel([self.block(b) for b in s.branches], s.pos)]
 
     def _Block(self, b: A.Block):
         return self.block(b)

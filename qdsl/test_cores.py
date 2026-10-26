@@ -129,9 +129,11 @@ def test_b_shared_compiles_to_one_core():
     assert cfgs == ['0', '3'], cfgs                     # Q0.qdrv is element 0, Q1.qdrv element 3
 
 
-def test_b_shared_par_rejected():
-    expect_qd_error('qubit Q0, Q1; par { { X90(Q0); } { X90(Q1); } }', target('shared_core'),
-                    'both run on processor core qubit/0')
+def test_b_shared_parallel_issues_in_turn():
+    """Branches on one core: the core issues them one after the other; the join waits for both."""
+    mems = compile_qd('qubit Q0, Q1; parallel { X90(Q0); | X90(Q1); } X90(Q0);', target('shared_core'))
+    ts = [int(p.split('t=')[1].split()[0]) for p in pulses(mems['qubit_command0'])]
+    assert ts == [5, 8, 20], ts                         # Q0, then Q1 3 clocks later; X90(Q0) after Q1 ends
 
 
 def test_b_shared_registers_counted_together():

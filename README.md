@@ -79,16 +79,17 @@ Logs from the runs the reference doc quotes: `out_a/b/c.txt` (compiler examples
 ## QD language prototype (`qdsl/`)
 
 An Odin-flavoured front end that compiles `.qd` files to QubiC-IR and on to
-machine code, with strict `;` sequencing, explicit `par`, and hardware-aware
-static checks. See `qdsl/README.md`.
+machine code, with strict `;` sequencing across processor cores, explicit
+`parallel` blocks, and hardware-aware static checks. See `qdsl/README.md`.
 
 ```sh
 python -m qdsl qdsl/examples/ex7_two_qubits.qd   # static schedule
-python -m qdsl.run_tests                          # 17 examples, 16 errors
+python -m qdsl.run_tests                          # 17 examples, 19 errors, core + sequencing tests
 rtl/qd_tb/run_demo.sh                             # QD -> machine code -> RTL
 python rtl/multi_tb/run_multi.py                  # multi-core + shots on RTL
+python rtl/multi_tb/run_seq.py                    # source order vs physical pulse order on RTL
 # every QD snippet in the docs parses; programs compile to the listed words
-python tools/check_doc_dsl.py docs/reference.md qdsl/README.md
+python tools/check_doc_dsl.py README.md docs/reference.md qdsl/README.md
 ```
 
 `setup.sh` installs a **patched** copy of `distproc` (see `patches/README.md`);
@@ -96,50 +97,47 @@ the vendored sources themselves are never modified.
 
 ## Status
 
-QD is a v0 prototype. **Implemented** is exactly what `qdsl/README.md`
-describes: declarations, procs, `do`/`for`/`#unroll`/`if`, measurement
-feedback, strictly sequential `;` (lowered to barriers over the qubits
-involved), explicit `par`, runtime delays via the patched compiler, mapping to
-physical processor cores from the channel configuration, and the listed static
-checks. The tests cover these (`python -m qdsl.run_tests`,
-`python -m qdsl.test_cores`, and the RTL runs above).
+QD is a v0 prototype. **Implemented** is what `qdsl/README.md` describes:
+- declarations, procs, `do`/`for`/`#unroll`/`if`, and measurement feedback;
+- the execution model below: strictly sequential `;` on every processor core,
+  and `parallel { A | B }` with a join;
+- runtime delays via the patched compiler;
+- mapping to physical processor cores from the channel configuration;
+- the listed static checks.
 
-**Not implemented** (planned or open): the items under "Not yet" in
-`qdsl/README.md` (timing expressions such as `duration(...)`, deadlines,
-frequency-index registers, register `bind_phase` frames, reporting several
-errors per run). Any revision of the execution and timing model (e.g. a
-different notion of sequential vs. parallel blocks, synchronized time counters
-across cores, or a `now()` expression) is an open design question, not part
-of the language; the next section describes the current proposal.
+The tests cover these: `python -m qdsl.run_tests` (examples, error cases, core
+and sequencing tests) and the RTL runs above.
 
-**Known gap:** a runtime loop followed by a statement on a qubit whose core
-does not run the loop is not ordered correctly today. QD neither replicates
-the loop nor rejects the program, and the later statement can fire while the
-loop is still running (Example 2, Case B below).
+**Not implemented** (planned or open):
+- the items under "Not yet" in `qdsl/README.md`;
+- runtime synchronization between cores;
+- synchronized physical-time counters and a `now()` expression;
+- automatic static bounds for loops.
 
-## Execution model: sequential and parallel programs (design proposal)
+These are design proposals, marked as such below.
 
-> **Proposed semantics, not yet implemented.** This section describes where
-> the QD execution model is meant to go. It does not change what QD accepts or
-> emits today. Proposed syntax appears in `text` blocks and does not parse.
-> Programs in `odin` blocks are current QD and compile
+## Execution model: sequential and parallel programs
+
+> **Status.** The rules below are **implemented** (static scheduling and
+> control-flow replication, on the existing QubiC ISA). Runtime
+> synchronization (approach C), synchronized physical-time counters and
+> `now()` remain **proposals**: no hardware, ISA or compiler support exists.
+> Programs in `odin` blocks compile with the current compiler
 > (`python tools/check_doc_dsl.py README.md`).
 
 Every listing below is tagged:
 
-- **[compiler output]**: produced today by `python -m qdsl FILE --bin` (QD
-  front end + the QubiC compiler and assembler as installed by `setup.sh`).
-  The decoded column comes from this repo's decoder (`qdsl/backend.py`).
-- **[QubiC output, edited IR]**: QD's IR edited by hand, then compiled by the
-  same QubiC toolchain. It shows what existing hardware can do with a
-  different lowering; QD does not emit it.
-- **[conceptual]**: hand-written with existing instructions, or pseudocode.
-  It is labelled as such.
+- **[compiler output]**: produced by the current compiler, `python -m qdsl
+  FILE --bin` (QD front end + the QubiC compiler and assembler as installed by
+  `setup.sh`). The decoded column comes from this repo's decoder
+  (`qdsl/backend.py`).
+- **[before the fix]**: what QD emitted until the sequencing fix (commit
+  `1825b18`), kept to show the failure.
+- **[conceptual]**: hand-written with existing instructions, not emitted by QD.
 - **[proposed ISA]**: needs hardware or toolchain support that does not exist.
 
-Timing numbers marked *RTL* come from one-off runs of these programs on the
-3-core simulation in `rtl/multi_tb` (`make QD_BIN=...`, see its README). They
-are not part of the test suite.
+Timing numbers marked *RTL* come from `python rtl/multi_tb/run_seq.py` (in the
+test suite) or, where stated, from one-off runs on the same 3-core simulation.
 
 ### The machine in one paragraph
 
@@ -160,36 +158,34 @@ different cores are ordered **only by their timestamps**. (Paths under `hdl/`,
 `distproc/` and `gateware/` are in `vendor/`; details in `docs/reference.md`,
 "Instruction set".)
 
-### Proposed rules
+### Rules (implemented)
 
-1. **Sequential source means sequential execution.** In `A; B;`, `B` starts
-   only after `A` has completed: all of `A`'s pulses have ended and all of its
-   runtime decisions are taken. This holds on every physical core, including
-   when `A` and `B` run on different cores.
+1. **Sequential source means sequential execution.** In `A; B;`, every quantum
+   operation of `A` has completed before any of `B` begins: all of `A`'s pulses
+   have ended and all of its runtime decisions are taken. This holds on every
+   physical core, including when `A` and `B` run on different cores.
 2. **`parallel { A | B }` declares independence.** The branches may overlap,
-   but nothing promises that they start together. A schedule may start them
-   together, stagger them, or serialize them.
+   but nothing promises that they start together. The schedule may start them
+   together (distinct cores), issue them in turn (shared core), or serialize
+   them (see "Runtime loops in parallel branches"). Branches must use disjoint
+   qubits, and a register written in one branch must not be used in another.
 3. **The end of a `parallel` block is a join.** The next sequential statement
    starts only after every branch has completed.
 4. **A join is a guarantee, not an instruction.** It constrains when later
-   operations may happen. It does not require a runtime barrier.
-5. **The compiler chooses the mechanism:** static scheduling, control-flow
-   replication, or explicit hardware synchronization (all three are described
-   below).
+   operations may happen. No runtime barrier is emitted.
+5. **The compiler chooses the mechanism**: static scheduling, or control-flow
+   replication. Runtime synchronization (C) is not available on the current
+   hardware.
 6. **If the compiler cannot guarantee the ordering, compilation fails.** It
    never silently weakens the semantics.
-7. **`parallel` is intended to replace today's `par`.** Today's `par` requires
-   disjoint qubits and starts its branches in the same clock (`qdsl/README.md`).
-   That "start together" rule is current behaviour, not part of the proposal.
-   How a program would request a simultaneous start (e.g. for an aligned
-   readout) is open.
+7. **`parallel` replaces `par`.** `par { ... }` is a syntax error that points
+   to `parallel`. Its "start together" rule is gone. How a program would
+   request a simultaneous start (e.g. for an aligned readout) is an open
+   question.
 
 ### Example 1: `parallel`, then a sequential statement
 
-Proposed syntax:
-
-```text
-// proposed syntax: does not parse today
+```odin
 qubit Q0, Q1, Q2;
 
 parallel {
@@ -209,15 +205,6 @@ derived by `qdsl/cores.py`:
 | Q0 | `Q0.qdrv` (0), `Q0.rdrv` (1), `Q0.rdlo` (2) | `qubit/0` | `qubit_command0` |
 | Q1 | `Q1.qdrv` (0), `Q1.rdrv` (1), `Q1.rdlo` (2) | `qubit/1` | `qubit_command1` |
 | Q2 | `Q2.qdrv` (0), `Q2.rdrv` (1), `Q2.rdlo` (2) | `qubit/2` | `qubit_command2` |
-
-The nearest current QD program uses `par`. Its common start is stricter than
-`parallel` requires, but it is one valid schedule of it:
-
-```odin
-qubit Q0, Q1, Q2;
-par { { X90(Q0); } { X90(Q1); } }
-X90(Q2);
-```
 
 **[compiler output]**:
 
@@ -246,13 +233,21 @@ Q2.qdrv      .................[ X90(Q2)  ]
 ```
 
 All durations are known at compile time, so the join becomes a number: core
-`qubit/2` simply waits for `t=17`. The three cores never communicate. *RTL:* Q0
-and Q1 strobe in the same clock, and Q2 strobes 12 clocks later.
+`qubit/2` simply waits for `t=17`. The three cores never communicate. On
+distinct cores both branches start at the barrier before the block; that is a
+property of the schedule, not a promise of `parallel`.
+
+When the qubits share a core (`qdsl/tests/configs/one_core.json`, all three on
+`qubit/0`), the core issues the branches in turn: `X90(Q0)` at t = 5,
+`X90(Q1)` at t = 8 (pulses on one core are ≥ 3 clocks apart), and `X90(Q2)` at
+t = 20, after both have ended. *RTL* (`run_seq.py`): `par_three_cores`,
+`par_one_core`, and `par_pair_core` (Q0 and Q1 share a core, Q2 has its own).
+All of them start Q2's pulse exactly when the later branch ends.
 
 ### Example 2: a runtime loop, then another qubit
 
-This program is valid current QD. `condition` is the last measurement of Q0, so
-the trip count is decided at runtime (1, 2, …, or unbounded):
+`condition` is the last measurement of Q0, so the trip count is decided at
+runtime (1, 2, …, or unbounded):
 
 ```odin
 qubit Q0, Q1;
@@ -300,10 +295,10 @@ qubit/0  [X90 Q0][rdrv][rdlo ......] idle  fproc rew jmp | [X90 Q0][rdrv] ... jm
          |<---------- iteration 1: m = 1 -------------->| |<- iteration k: m = 0 ->|
 ```
 
-#### Case B: Q0 and Q1 on different cores (the naive lowering)
+#### Case B: Q0 and Q1 on different cores
 
-With the vendored mapping (Q0 → `qubit/0`, Q1 → `qubit/1`), **this is what QD
-emits today**. **[compiler output]**:
+**[before the fix]** With the vendored mapping (Q0 → `qubit/0`, Q1 →
+`qubit/1`), QD used to scope the loop to Q0's core only:
 
 ```
 qubit_command0                                     qubit_command1
@@ -319,12 +314,9 @@ qubit_command0                                     qubit_command1
   @9  done
 ```
 
-The loop and `m` are scoped to Q0's core only, because QD scopes a loop to the
-cores whose registers or pulses it uses (`qdsl/lower.py`, header). The `;`
-before `X90(Q1)` becomes a barrier, and QubiC resolves it to the timestamp
-`t=15`. On core 0, `t=15` means "15 clocks after the last rewind". Core 1 never
-runs the loop and never rewinds, so for core 1 it means 15 clocks after the
-shot start:
+On core 0, `t=15` means "15 clocks after the last rewind". Core 1 never runs
+the loop and never rewinds, so for core 1 it meant 15 clocks after the shot
+start:
 
 ```
 clock (since shot start)
@@ -332,14 +324,9 @@ clock (since shot start)
 qubit/0       :    [X90 Q0]                                    :   rewind, jump
                         [rdrv ............................]   :   -> iteration 2 if m = 1
                                           [rdlo ............] fproc
-qubit/1       :      [X90 Q1]     <- fires during iteration 1, whatever m turns out to be
+qubit/1       :      [X90 Q1]     <- fired during iteration 1, whatever m turned out to be
                      ^ t = 15
 ```
-
-*RTL:* core 0 strobes `X90(Q0)` in cycle 2063 and core 1 strobes `X90(Q1)` in
-cycle 2069. That is 6 clocks later, while Q0's pulse is still playing and long
-before the measurement (cycle 3439). With a fixed 5-iteration counter loop,
-core 0 strobes in cycles 58, 75, 92, 109 and 126, and core 1 in cycle 64.
 
 Each per-core program is in perfect textual order, and the result still
 violates the source order. Program order constrains only the core that holds
@@ -347,71 +334,11 @@ it. Across cores only timestamps order events, and a timestamp written after a
 data-dependent loop means nothing to a core that did not run the loop. **The
 source-level execution model therefore cannot be read off the textual order of
 independently running per-core programs.** The compiler has to establish
-cross-core ordering explicitly. Under rule 6, it must reject the program when
-it cannot. Today it does neither (see "Known gap" above).
+cross-core ordering explicitly, or reject the program.
 
-### Correct cross-core sequencing
-
-#### A. Static scheduling
-
-If the loop's duration is known, or a safe upper bound can be proven, core 1
-schedules `X90(Q1)` after that bound. Example with a counter loop of exactly
-five iterations:
-
-```odin
-qubit Q0, Q1;
-n := 0;
-do {
-    X90(Q0);
-    n += 1;
-} while n < 5;           // trip count 5, provable at compile time
-X90(Q1);
-```
-
-QD today lowers this like Case B: core 1 gets `t=15` and fires during the
-first iteration (*RTL* numbers above). A static-bound lowering needs only a
-different timestamp on core 1. The body is Δ = 17 clocks and the first
-`X90(Q0)` is at t = 9, so the fifth starts at 9 + 4·17 = 77 and ends at 89:
-
-```
-qubit_command1   [conceptual: existing ISA, not emitted by QD]
-  @0  pulse_reset
-  @1  pulse_write_trig t=89  cfg=0 amp=15777   X90(Q1)   (QD emits t=15)
-  @2  done
-```
-
-```
-clock      9    26   43   60   77   89
-qubit/0    [X]  [X]  [X]  [X]  [X]           X = X90(Q0), 12 clocks; body = 17 clocks
-qubit/1                             [X90 Q1]
-                                    ^ bound = 9 + 4*17 + 12
-```
-
-*RTL:* this is QD's binary with only the `cmd_time` field of core 1's word
-(bits [36:5]) changed to 89. Core 0 strobes in cycles 58 to 126, and its last
-pulse ends at 138. Core 1 strobes in cycle 138.
-
-Current QD can already express the fixed-count case correctly by unrolling:
-`#unroll for k in 0..<5 { X90(Q0); }` gives straight-line pulses at t = 5, 17,
-29, 41, 53 and `X90(Q1)` at t = 65 **[compiler output]**. The cost is code size
-(8192 words per core).
-
-Limits: a bound must exist. Example 2's measurement loop has none, so static
-scheduling alone would have to reject it. When a loop exits before its bound,
-the next statement still waits for the bound: ordering is preserved, but the
-gap varies. The bound must also cover the instruction costs (cycle table in
-`docs/reference.md`).
-
-#### B. Control-flow replication
-
-Core 1 runs a copy of the loop's control flow without Q0's pulses. It reads the
-same measurement bit, takes the same branches, and applies the same
-`inc_qclk −Δ`, so both cores end the loop in the same `qclk` frame. Existing
-hardware supports this. QubiC already replicates loops whose scope spans
-several cores; QD just does not choose that scope for this program.
-
-**[QubiC output, edited IR]**: Example 2 with the scope of `m` and of the loop
-widened to {Q0, Q1}:
+**[compiler output]** now: control-flow replication (approach B below). Core
+1 runs the loop's control flow, reads the same measurement bit in the same
+clock, and rewinds with core 0:
 
 ```
 qubit_command0                                     qubit_command1
@@ -433,34 +360,121 @@ qubit/1  ........ idle ......... fproc rew jmp | ........ idle ....... fproc rew
                                  ^ same bit, same clock                               ^ after exit
 ```
 
-*RTL:* both cores make the FPROC request in the same clock (qclk 1388), and
-`X90(Q1)` strobes in cycle 3471, after Q0's readout window and measurement. The
-measurement here was 0, so the loop ran once. With the 5-iteration counter loop
-replicated the same way, `X90(Q1)` strobes in cycle 153, after Q0's fifth pulse
-in cycle 130.
+*RTL* (`run_seq.py`, measurement bits forced to 1, 1, 0, so 3 iterations; pulse
+intervals in clocks since the shot start):
 
-Assumptions and limits:
+| | Q0's loop ends | `X90(Q1)` starts |
+|---|---|---|
+| before the fix, two cores | 4122 | **22** (during iteration 1) |
+| after the fix, two cores | 4122 | 4213 |
+| one shared core (Case A) | 4122 | 4213 |
+| after the fix, bit forced to 0 (1 iteration, same binary) | 1328 | 1419 |
+| 5-iteration counter loop, before / after | 96 | **22** / 107 |
+
+### Correct cross-core sequencing
+
+#### A. Static scheduling (not automatic)
+
+If the loop's duration is known, or a safe upper bound can be proven, core 1
+could schedule `X90(Q1)` after that bound without running the loop. QD does not
+compute such bounds; it replicates every runtime loop (B), including counter
+loops with a fixed trip count. For the 5-iteration counter loop, the body is
+Δ = 17 clocks and the first `X90(Q0)` is at t = 9. The fifth starts at
+9 + 4·17 = 77 and ends at 89:
+
+```
+qubit_command1   [conceptual: existing ISA, not emitted by QD]
+  @0  pulse_reset
+  @1  pulse_write_trig t=89  cfg=0 amp=15777   X90(Q1)
+  @2  done
+```
+
+```
+clock      9    26   43   60   77   89
+qubit/0    [X]  [X]  [X]  [X]  [X]           X = X90(Q0), 12 clocks; body = 17 clocks
+qubit/1                             [X90 Q1]
+                                    ^ bound = 9 + 4*17 + 12
+```
+
+*RTL* (one-off): the old binary with only the `cmd_time` field of core 1's word
+(bits [36:5]) changed to 89. Core 0's last pulse ends at cycle 138, and core 1
+strobes in cycle 138.
+
+A program can get static scheduling today by unrolling: `#unroll for k in
+0..<5 { X90(Q0); }` gives straight-line pulses at t = 5, 17, 29, 41, 53 and
+`X90(Q1)` at t = 65 **[compiler output]**. The cost is code size (8192 words
+per core). A measurement-dependent loop has no bound.
+
+#### B. Control-flow replication (implemented)
+
+Every core with a quantum operation after a runtime loop runs a copy of the
+loop's control flow, without the other cores' pulses (`qdsl/lower.py`,
+`later`). It reads the same registers and measurement bits, takes the same
+branches, and applies the same `inc_qclk −Δ`. So all participating cores end
+the loop in the same `qclk` frame. "After" includes the rest of every enclosing
+statement sequence and, inside an enclosing loop, that loop's whole body (its
+next iteration). It does not include other branches of a `parallel` block.
+Cores with nothing after the loop do not run it. Machine words of all existing
+examples are unchanged by this rule.
+
+Assumptions and limits, each enforced or checked:
 
 - **Shared measurement availability.** Every replica must be able to read the
   bit that decides the loop. `fproc_meas` serves any measurement to any core
-  (RTL check f5), but only on the same board (QD rejects cross-board feedback,
-  `qdsl/test_cores.py`). It also returns the latched value **without waiting**
-  for a new one, so each replica's read must be scheduled after the result is
-  latched. The margin is 1 clock ("Measurement feedback timing" in
-  `docs/reference.md`). Replicas read in the same clock, so they see the same
-  value.
-- **Timing alignment.** All replicas must use the same Δ and the same
-  timestamps. QubiC computes one `delta_t` per loop (`passes.py:1024`). Each
-  core's control instructions must fit inside the body.
-- **Register state.** Every register the condition depends on must exist on
-  every replica core and be updated identically there. This costs registers
-  (16 per core, counted per core by QD) and instruction memory. A decision based
-  on data that some replica cannot read cannot be replicated.
+  (RTL check f5), but only on the same board. A replica on another board is
+  rejected with the FPROC diagnostic and the reason it takes part. The read
+  returns the latched value **without waiting** for a new one, so it relies on
+  the `hold` before it (1 clock of margin, "Measurement feedback timing" in
+  `docs/reference.md`). Replicas read in the same clock (*RTL*: qclk 1388 on
+  both cores), so they see the same value.
+- **Timing alignment.** QubiC computes one `delta_t` per loop
+  (`passes.py:1024`), so all replicas rewind by the same amount. QD checks that
+  every core that runs a loop has run the same runtime loops and delays before
+  it, so its `qclk` maps to the same physical time (`_check_frames`).
+- **Register state.** The registers a condition depends on are replicated to
+  every core of the loop and updated there by the same instructions. They count
+  against the 16 registers per core (checked), and the copy costs instruction
+  memory.
 
-#### C. Runtime synchronization
+#### Runtime loops in parallel branches
 
-Core 1 waits for a completion signal or rendezvous with core 0. This handles
-unbounded loops, at the cost of stalling.
+```odin
+qubit Q0, Q1, Q2;
+m0 := 1;
+m1 := 1;
+parallel {
+    do { X90(Q0); m0 = measure(Q0); } while m0 == 1;
+|
+    do { X90(Q1); m1 = measure(Q1); } while m1 == 1;
+}
+```
+
+Without a following statement this compiles: each core runs its own loop, and
+the join is the end of the shot. Add `X90(Q2);` after the block and core 2 would
+have to follow both loops at the same time. A core runs its control flow in
+program order, so it would evaluate the second loop's condition only after the
+first loop, at the wrong time. **Rejected**:
+
+```
+error: cannot guarantee the order of the loop: processor cores qubit/2 and qubit/1 both
+take part, but only qubit/2 has run the runtime loop at line 8 before; qubit/2 takes part
+because Q2 must wait for it
+```
+
+(`qdsl/errors/e18_parallel_runtime_loops.qd`.) The same check accepts
+programs where one core can follow both loops in turn. With `measure(Q1);`
+after the block, core 1 follows Q0's loop and then runs its own, so the
+branches run one after the other. *RTL* `par_loops_serialized`: Q1's loop starts
+at cycle 2820, after Q0's loop ends at 2729. Two loops on one shared core are
+also accepted. A loop in one branch and straight-line code in the other overlap
+(*RTL* `par_loop_and_static_then_join`: `X90(Q1)` at cycle 22 during the loop,
+and `X90(Q2)` at 4225, after it). Joining two concurrent runtime loops would
+need approach C.
+
+#### C. Runtime synchronization (proposal, not implemented)
+
+Core 1 waits for a completion signal or rendezvous with core 0. This would
+handle a core that follows concurrent loops, at the cost of stalling.
 
 ```
 [proposed ISA: needs gateware and toolchain support]
@@ -512,12 +526,23 @@ The only runtime join across cores that exists today is the end of a shot:
   and a runtime delay shifts it by a register value (patched compiler). After
   a data-dependent loop, `qclk` no longer equals physical time. Cores that
   rewound identically still agree with each other; cores that did not, disagree
-  (Case B).
+  (Case B before the fix). QD's static schedule (`python -m qdsl FILE`) prints
+  times in this coordinate. After a loop they are in the rewound frame: each
+  iteration the loop runs moves them later by the body length.
 - **Instruction execution time** is the clocks the core spends executing:
   `reg_alu` 4, `jump_cond` 6, `alu_fproc` 6, `pulse_write_trig` ≥ 3 (table in
   `docs/reference.md`). Instructions run ahead of the pulses and stall on the
   next timed pulse. A core that reaches a timestamp late never fires it and
   hangs (RTL test t3), so the scheduler must leave room for every instruction.
+
+**Trigger slack, measured.** The testbench records, for every timed
+instruction, its timestamp minus `qclk` when the core reaches it. Across all
+`run_seq.py` and `run_multi.py` programs the minimum is 0 to 3 clocks and never
+negative. QubiC's cycle model is exact on this RTL, so there is no margin. The
+guarantee is only as good as that model. A cost it does not count would make a
+trigger late, and a late trigger hangs the core silently. One such cost is the
+extra `pulse_write` word of a pulse with two register parameters: QD warns
+about it, although it did not cause a late trigger in the cases tried.
 
 **Under consideration (not in hardware, ISA or QD):** a *synchronized,
 monotonically increasing* counter per core. It would be reset together on all
@@ -534,12 +559,13 @@ where the decisions are made. Core 1 still needs a bound (A), the same decisions
 (B), or a signal (C). A shared counter would make re-aligning after B or C
 easier, but it does not replace them.
 
-### Summary: current, possible with existing hardware, needs extensions
+### Summary
 
-| Ordering problem | Current QD compiler | Existing QubiC hardware, different lowering | Needs ISA / RTL extension |
+| Ordering problem | Current QD compiler | Remaining options | Needs ISA / RTL extension |
 |---|---|---|---|
-| Straight-line code across cores (Example 1) | correct, static timestamps | — | — |
-| Branches that overlap without a common start (`parallel`) | not expressible (`par` forces a common start) | yes, it is only a schedule | — |
-| Fixed-count loop, then another core | correct only with `#unroll`; a runtime loop is lowered naively | static bound (A), replication (B) | — |
-| Measurement-dependent loop, then another core | naive lowering, ordering violated | replication (B), if every replica can read the bit | rendezvous (C): gateware sync controller + toolchain |
-| Monotonic synchronized counter, `now()` | no | no (`qclk` is rewound) | yes |
+| Straight-line code across cores (Example 1) | static timestamps | — | — |
+| `parallel` branches on distinct or shared cores | static scheduling; a shared core issues the branches in turn | — | — |
+| Runtime loop (fixed count or measurement-dependent), then another core | control-flow replication (B) | static bound (A) would save the copy for provable trip counts | — |
+| A core that must follow two concurrent runtime loops (parallel branches) | **rejected** | sequential loops, `#unroll` | rendezvous (C): gateware sync controller + toolchain |
+| A replica that cannot read the loop's measurement (other board) | **rejected** | — | cross-board result sharing |
+| Monotonic synchronized counter, `now()` | no | — | yes |

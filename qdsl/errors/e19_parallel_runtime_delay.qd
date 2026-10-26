@@ -1,0 +1,8 @@
+// expect: a runtime delay cannot be inside a parallel branch
+qubit Q0, Q1;
+tau : time = 10 us;
+parallel {
+    X90(Q0); delay(tau); X90(Q0);
+|
+    X90(Q1);
+}

@@ -109,7 +109,8 @@ def timing(b: Build, target: Target) -> str:
     for t, dest, n, tag, blk in sorted(rows):
         out.append(f'{t:8d} {t * clk * 1e6:9.3f}  {dest:9} {n:5d}  {tag:10} {blk}')
     for name, lp in loops.items():
-        out.append(f'loop {name}: body {lp.delta_t} clks = {lp.delta_t * clk * 1e6:.3f} us per iteration')
+        out.append(f'loop {name}: body {lp.delta_t} clks = {lp.delta_t * clk * 1e6:.3f} us per iteration '
+                   f'(qclk rewinds by this each iteration; times after the loop are in the rewound frame)')
     shifts = [(blk, i.var) for blk in prog.blocknames_by_ind for i in prog.blocks[blk]['instructions']
               if i.name == 'inc_qclk']
     for blk, var in shifts:

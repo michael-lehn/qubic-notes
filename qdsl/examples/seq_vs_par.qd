@@ -4,7 +4,8 @@ P :: cos_edge_square(0.25);
 
 pulse(Q0.qdrv, amp = 0.5, width = 32 ns, env = P);   // t = 5
 pulse(Q1.qdrv, amp = 0.5, width = 32 ns, env = P);   // waits for Q0: t = 21
-par {
-    { pulse(Q0.qdrv, amp = 0.5, width = 32 ns, env = P); }
-    { pulse(Q1.qdrv, amp = 0.5, width = 32 ns, env = P); }
-}                                                    // both at t = 37
+parallel {                                           // independent branches; a common start is
+    pulse(Q0.qdrv, amp = 0.5, width = 32 ns, env = P);   // not promised. On two cores both are
+|                                                        // scheduled at t = 37.
+    pulse(Q1.qdrv, amp = 0.5, width = 32 ns, env = P);
+}

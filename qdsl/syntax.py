@@ -1,6 +1,7 @@
 """AST and parser (Lark LALR, grammar in grammar.lark)."""
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -174,7 +175,7 @@ class Unroll:
 
 
 @dataclass
-class Par:
+class Parallel:
     branches: list[Block]
     pos: Pos
 
@@ -262,8 +263,11 @@ class _ToAST(Transformer):
         lo, hi, step = (seq + [None])[:3]
         return Unroll(str(var), None, lo, hi, step, body, _pos(meta))
 
-    def par(self, meta, blocks):
-        return Par(blocks, _pos(meta))
+    def parallel(self, meta, branches):
+        return Parallel(branches, _pos(meta))
+
+    def branch(self, meta, items):
+        return Block(items, _pos(meta))
 
     def block(self, meta, items):
         return Block(items, _pos(meta))
@@ -328,5 +332,8 @@ def parse(source: str) -> Program:
         hint = ('expected ' + ' or '.join(expected[:10])) if expected else None
         tok = getattr(e, 'token', None)
         what = f"unexpected '{tok}'" if isinstance(tok, Token) else 'syntax error'
+        old_par = re.search(r'\bpar\s*\{', source)
+        if old_par and source.count('\n', 0, old_par.start()) + 1 == e.line:
+            hint = 'par was replaced by  parallel { A; | B; }  (branches separated by |)'
         raise QdError(Pos(e.line, e.column), what, hint) from None
     return _ToAST().transform(tree)

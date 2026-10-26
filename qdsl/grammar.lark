@@ -8,8 +8,10 @@
 //   n := 0;                    variable, type inferred (int)
 //   name :: proc(q: qubit, t: time) { ... }    always inlined
 //
-// Statements are separated by ';' and run strictly one after another.
-// Parallelism is explicit: par { {...} {...} }.
+// Statements are separated by ';' and run strictly one after another: every quantum
+// operation of S1 has completed before any of S2 begins, on every processor core.
+// Parallelism is explicit: parallel { S1 | S2 } runs independent branches that may
+// overlap (no common start is promised); the closing brace is a join.
 
 start: item*
 
@@ -41,7 +43,7 @@ TYPE: "int" | "amp" | "phase" | "time" | "freq" | "qubit"
      | for_cond
      | for_range
      | unroll
-     | par
+     | parallel
      | block
 
 assign: NAME ASSIGN_OP expr ";"
@@ -56,7 +58,8 @@ for_range: "for" NAME "in" expr "..<" expr block
 unroll: "#unroll" "for" NAME "in" unroll_seq block
 unroll_seq: "[" expr ("," expr)* ","? "]"     -> unroll_list
           | expr "..<" expr ["step" expr]      -> unroll_range
-par: "par" "{" block+ "}"
+parallel: "parallel" "{" branch ("|" branch)+ "}"
+branch: item*
 block: "{" item* "}"
 
 cond: expr CMP expr

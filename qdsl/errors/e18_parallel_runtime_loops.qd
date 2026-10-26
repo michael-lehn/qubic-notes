@@ -1,0 +1,12 @@
+// expect: cannot guarantee the order of the loop
+// Two runtime loops in parallel branches, then an operation that must follow both:
+// core 2 would have to repeat both loops at once.
+qubit Q0, Q1, Q2;
+m0 := 1;
+m1 := 1;
+parallel {
+    do { X90(Q0); m0 = measure(Q0); } while m0 == 1;
+|
+    do { X90(Q1); m1 = measure(Q1); } while m1 == 1;
+}
+X90(Q2);

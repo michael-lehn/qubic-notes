@@ -12,10 +12,12 @@ These constraints feed each other; we iterate to a fixed point.
 
 Sequencing.  Statements separated by ';' run strictly one after another: before
 each timed statement we insert barrier(previous footprint | this footprint).
-`par` branches start together (barrier over all branches) and the next
-statement waits for the longest one.  Barriers do not carry across QubiC basic
-blocks, so every branch body starts with its own barrier (loops get one from
-FlattenProgram).
+A parallel block is one statement: a barrier over all branches before it, the
+branches one after another in the IR (each scheduled from that barrier, so on
+different cores they overlap; on a shared core QubiC issues them in turn), and
+the next statement's barrier is the join.  Barriers do not carry across QubiC
+basic blocks, so every branch body starts with its own barrier (loops get one
+from FlattenProgram).
 
 Cross-core order.  Cores agree on time only through timestamps.  QubiC rewinds
 qclk by the body length at the end of every loop iteration (inc_qclk -delta) and
@@ -28,11 +30,11 @@ fire its next pulse while the loop is still running.  So:
   - every core that runs a loop, or reads a measurement result, must have run
     the same runtime loops and delays before, so that its qclk maps to the same
     physical time (`_check_frames`).  Otherwise the program is rejected: two
-    runtime loops in different par branches cannot both be followed by one core."""
+    runtime loops in different parallel branches cannot both be followed by one core."""
 from __future__ import annotations
 
 from .diag import QdError
-from .sema import SHIFT_REG, MClassical, MIf, MLoop, MPar, MTimed, Sema
+from .sema import SHIFT_REG, MClassical, MIf, MLoop, MParallel, MTimed, Sema
 from .target import N_REGS, CoreId, Target
 
 
@@ -54,7 +56,7 @@ class Lowering:
             return [n.then, n.els]
         if isinstance(n, MLoop):
             return [n.body]
-        if isinstance(n, MPar):
+        if isinstance(n, MParallel):
             return n.branches
         return []
 
@@ -87,7 +89,7 @@ class Lowering:
     def _mark_later(self, nodes: list, after: set):
         """later[loop] = qubits whose operations must wait for the loop: the rest of every
         enclosing sequence, the whole body of every enclosing loop (its next iteration), and
-        nothing from other par branches."""
+        nothing from other parallel branches."""
         for i, n in enumerate(nodes):
             rest = self._op_qubits(nodes[i + 1:]) | after
             if isinstance(n, MLoop):
@@ -193,7 +195,7 @@ class Lowering:
             return set(n.qubits) if n.qubits else set(enclosing)
         if isinstance(n, (MIf, MLoop)):
             return set(self.node_scope[id(n)])
-        if isinstance(n, MPar):
+        if isinstance(n, MParallel):
             return set().union(*(self._branch_fp(b, enclosing) for b in n.branches))
         return set()
 
@@ -204,34 +206,36 @@ class Lowering:
             inner |= self.footprint(n, inner) if not isinstance(n, MClassical) else set()
         return inner
 
-    def _check_par(self, n: MPar, enclosing: set):
-        fps = [self._branch_fp(b, enclosing) for b in n.branches]
-        seen: dict[str, int] = {}
-        for i, fp in enumerate(fps):
-            for q in fp:
-                if q in seen:
-                    hint = ('branches must use disjoint qubits and disjoint processor cores.\n'
-                            'Two pulses on one core start 3 clocks apart; on one channel they serialize.')
-                    for j in (seen[q], i):
-                        bj = n.branches[j]
-                        regs = sorted(v for v in self._vars_in(bj) if q in self.var_scope[v])
-                        if q not in self._static_qubits(bj) and regs:
-                            hint += (f"\nHere {q} enters branch {j + 1} through register(s) {', '.join(regs)}, "
-                                     f"whose condition must be evaluated on {q}'s core too.")
-                    raise QdError(n.pos, f'par branches {seen[q] + 1} and {i + 1} both use {q}', hint)
-                seen[q] = i
-        owner: dict[CoreId, int] = {}
-        for i, fp in enumerate(fps):
-            for core in sorted(self.t.cores.cores_of(*fp)):
-                if core in owner:
-                    j = owner[core]
-                    on = lambda k: ', '.join(sorted(q for q in fps[k] if core in self.t.cores.cores_of(q)))
-                    raise QdError(n.pos, f'par branches {j + 1} and {i + 1} both run on processor core {core} '
-                                  f'(branch {j + 1}: {on(j)}; branch {i + 1}: {on(i)})',
-                                  'one core issues one instruction at a time, so the branches could not start '
-                                  'together:\npulses on one core are at least 3 clocks apart. '
-                                  'Put the branches on qubits of different cores.')
-                owner[core] = i
+    def _check_parallel(self, n: MParallel):
+        """Branches must be independent: disjoint qubits, and no register written in one
+        branch and used in another.  Sharing a processor core is fine: the core issues one
+        branch's instructions after the other's, which QubiC's scheduler accounts for."""
+        for b in n.branches:
+            for m in self._walk(b):
+                if isinstance(m, MTimed) and m.kind == 'rdelay':
+                    raise QdError(m.pos, 'a runtime delay cannot be inside a parallel branch',
+                                  'it shifts the clock of every core, so it would delay the other branches too;\n'
+                                  'put it before or after the parallel block')
+        used = [{q for m in self._walk(b) if isinstance(m, MTimed) and m.qubits for q in m.qubits} |
+                {m.measured for m in self._walk(b) if isinstance(m, MIf) and m.measured} for b in n.branches]
+        for i in range(len(used)):
+            for j in range(i):
+                common = sorted(used[i] & used[j])
+                if common:
+                    raise QdError(n.pos, f'parallel branches {j + 1} and {i + 1} both use {common[0]}',
+                                  'parallel branches must be independent: operations on one qubit have an order,\n'
+                                  'so write them in one branch (or sequentially)')
+        defs = [{v for m in self._walk(b) if isinstance(m, MClassical) for v in m.defs} for b in n.branches]
+        uses = [self._vars_in(b) for b in n.branches]
+        for i in range(len(defs)):
+            for j in range(len(defs)):
+                race = sorted(defs[i] & uses[j]) if i != j else []
+                if race:
+                    raise QdError(n.pos, f"parallel branches {min(i, j) + 1} and {max(i, j) + 1} both use register "
+                                  f"'{race[0]}', and branch {i + 1} writes it",
+                                  'the branches are independent, so the other branch would see the old or the new '
+                                  'value\ndepending on the schedule. Compute it before the block, or use it after '
+                                  'the join.')
 
     def _check_fproc(self, func_id: str, readers: set, pos):
         q = func_id.removesuffix('.meas')
@@ -254,7 +258,7 @@ class Lowering:
         measurement together with the measuring core, must have run the same ones before."""
         self._frames(self.mir, {})
 
-    def _same_frame(self, cores: set, hist: dict, what: str, pos):
+    def _same_frame(self, cores: set, hist: dict, what: str, pos, followers: set = frozenset()):
         seen = {}
         for c in sorted(cores):
             seen.setdefault(hist.get(c, ()), c)
@@ -262,12 +266,17 @@ class Lowering:
             return
         (ha, a), (hb, b) = sorted(seen.items(), key=lambda kv: len(kv[0]), reverse=True)[:2]
         extra = next(e for e in ha if e not in hb)
+        why = ''
+        for c in (a, b):
+            qs = sorted(q for q in followers if c in self.t.cores.cores_of(q))
+            if qs:
+                why += f'; {c} takes part because {", ".join(qs)} must wait for it'
         raise QdError(pos, f'cannot guarantee the order of {what}: processor cores {a} and {b} both take part, '
-                      f'but only {a} has run the {extra[1]} at line {extra[2].line} before',
+                      f'but only {a} has run the {extra[1]} at line {extra[2].line} before{why}',
                       'a core runs its control flow in program order, and cores agree on time only through '
                       'timestamps.\nAfter a runtime loop, every core with later operations repeats the loop to '
                       'stay in step; one core cannot\nfollow two runtime loops that run at the same time in '
-                      'different par branches, and current QubiC hardware\nhas no runtime barrier. Make the loops '
+                      'different parallel branches, and current QubiC hardware\nhas no runtime barrier. Make the loops '
                       'sequential, unroll fixed counts (#unroll for), or drop the\noperations that need both.')
 
     def _frames(self, nodes: list, hist: dict):
@@ -281,7 +290,7 @@ class Lowering:
                     hist[c] = hist.get(c, ()) + (('rdelay', 'runtime delay', n.pos),)
             elif isinstance(n, MLoop):
                 cores = self._cores(self.node_scope[id(n)])
-                self._same_frame(cores, hist, 'the loop', n.pos)
+                self._same_frame(cores, hist, 'the loop', n.pos, self.later[id(n)] - self._op_qubits(n.body))
                 before = {c: hist.get(c, ()) for c in cores}
                 self._frames(n.body, hist)
                 for c in cores:
@@ -300,7 +309,7 @@ class Lowering:
                 for c in cores:
                     inner = tuple(h.get(c, ())[len(before[c]):] for h in arms)
                     hist[c] = before[c] + ((('if', 'branch with a runtime loop', n.pos, inner),) if any(inner) else ())
-            elif isinstance(n, MPar):
+            elif isinstance(n, MParallel):
                 for b in n.branches:                      # cores run the branches in this order
                     self._frames(b, hist)
 
@@ -329,7 +338,7 @@ class Lowering:
             fp = self.footprint(n, enclosing)
             if prev is not None:
                 out.append(self._barrier(prev | fp))
-            elif isinstance(n, MPar):
+            elif isinstance(n, MParallel):
                 out.append(self._barrier(fp))
             out += self._node(n, enclosing, fp)
             prev = fp
@@ -357,8 +366,8 @@ class Lowering:
         if isinstance(n, MLoop):
             return [{'name': 'loop', 'cond_lhs': n.lhs, 'alu_cond': n.op, 'cond_rhs': n.rhs,
                      'scope': sorted(fp), 'body': self._seq(n.body, fp)}]
-        if isinstance(n, MPar):
-            self._check_par(n, enclosing)
+        if isinstance(n, MParallel):
+            self._check_parallel(n)
             out = []
             for b in n.branches:
                 out += self._seq(b, self._branch_fp(b, enclosing))

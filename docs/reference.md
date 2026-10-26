@@ -89,7 +89,7 @@ silently becomes a `Gate`** to be looked up in the calibration database
 | `barrier` | `qubit`/`scope` | removed; aligns the cursors of all channels in scope | `barrier(Q0, Q1);` | `passes.py:1132-1139` |
 | `idle` | `end_time` (absolute clocks) | `idle` | — | `compiler.py:283-285` |
 | `hold` | `nclks`, `ref_chans` | `idle`; inserted automatically before every FPROC read | implicit | `instructions.py:307`, `passes.py:1171-1187` |
-| `start_time` field | on `pulse`/gate | manual timestamp when scheduling is off (`LintSchedule` checks it) | not in QD v0 (`;` and `par` order statements) | `passes.py:1036-1056` |
+| `start_time` field | on `pulse`/gate | manual timestamp when scheduling is off (`LintSchedule` checks it) | not in QD v0 (`;` and `parallel` order statements) | `passes.py:1036-1056` |
 
 **Pulses, frames and measurement**
 
@@ -170,7 +170,7 @@ below). \[interp\]
    sits at the worst-case path (`passes.py:1003-1007`). Counterexample: in the
    IR, pulses written in the order Q0.qdrv, Q1.qdrv, Q0.rdrv start at t = 5, 5
    and 8 (Example 7b). A `delay(tau)` with a runtime `tau` cannot be expressed
-   in the IR. **In QD:** `;` is strictly sequential, `par` makes parallelism
+   in the IR. **In QD:** `;` is strictly sequential, `parallel` makes parallelism
    explicit, delays are constants or `time` registers, and `delay(tau);` lowers
    to a register `inc_qclk` (see QD prototype).
 2. **The loop is a do-while with strict comparisons.** The right operand must be
@@ -220,7 +220,7 @@ frontend already exists. \[interp\]
 ## QD prototype
 
 QD is a working front end that turns the DSL critique into code: Odin-style
-declarations, strictly sequential `;`, explicit `par`, and checks that know the
+declarations, strictly sequential `;`, explicit `parallel`, and checks that know the
 hardware. It emits QubiC-IR and reuses the QubiC compiler and assembler
 unchanged, apart from one small patch for runtime delays. The original amplitude
 sweep compiles to exactly the same 9 machine words as the hand-written IR. Code:
@@ -243,15 +243,15 @@ do {
 } while n < 5;                  // the hardware's post-test loop
 
 if measure(Q0) == 1 { X90(Q0); X90(Q0); }
-par { { measure(Q1); } { measure(Q2); } }   // explicit parallelism
+parallel { measure(Q1); | measure(Q2); }    // independent branches, then a join
 ```
 
 **Semantics and lowering**
 
 | Construct | Meaning | QubiC-IR |
 | --- | --- | --- |
-| `X90(Q0); X90(Q1);` | the second statement starts when every qubit the first used is idle | `barrier(Q0, Q1)` between them: the union of both statements' qubits |
-| `par { { X90(Q0); } { X90(Q1); } }` | branches start together; the next statement waits for the longest | barriers before and after; branches must use disjoint qubits |
+| `X90(Q0); X90(Q1);` | every quantum operation of the first statement has completed before any of the second begins, on every core | `barrier(Q0, Q1)` between them: the union of both statements' qubits; after a runtime loop the later cores also run the loop's control flow |
+| `parallel { X90(Q0); \| X90(Q1); }` | independent branches that may overlap (no common start promised); the end is a join | barriers before and after; branches must use disjoint qubits and must not share a register that one of them writes |
 | `T1 : time : 10 us;` / `a : amp = 0.1;` | compile-time constant / register | folded immediates / `declare` + `set_var` |
 | `do { X90(Q0); } while n < 5;`, `for n < 5 { X90(Q0); }`, `for i in 0..<5 { X90(Q0); }`, `#unroll for t in [0 us, 10 us] { delay(t); }` | post-test, guarded, counter, compile-time loops | `loop`, `branch_var` + `loop`, unrolled code |
 | `if measure(Q0) == 1 { X90(Q0); }`, `m := measure(Q0);` | feedback on a measurement | `read` + `branch_fproc` / `read_fproc` |
@@ -263,7 +263,7 @@ on every core whose pulses or conditions use it, and a loop or branch spans
 every core holding a register used inside it. That is the IR's `scope` field,
 written for you.
 
-**Static checks** (16 error cases in `qdsl/errors/`, each with line, caret and
+**Static checks** (19 error cases in `qdsl/errors/`, each with line, caret and
 hint)
 
 | Check | What the IR does without it |
@@ -273,7 +273,8 @@ hint)
 | Ordering compares on `amp` registers that may hold a negative step; negative `amp` constants in compares | accepted, wrong at runtime (RTL test t6) |
 | Ordering compares on `phase` | accepted, meaningless (wraps mod 2π) |
 | `<=`, `>=`, `!=` in loop conditions | not expressible; int with a constant is rewritten |
-| `par` branches sharing a qubit, including through a shared register | accepted, silently serialized or skewed |
+| `parallel` branches sharing a qubit, or a register that one of them writes | accepted, silently serialized or racing |
+| An operation after a runtime loop on a core that cannot follow the loop (e.g. two concurrent loops in `parallel` branches, or another board's FPROC) | accepted; the later pulse fires while the loop still runs |
 | More than 16 registers on a core; more than 8192 words per core | late assembler error / no check |
 | Runtime delay register that may decrease | accepted; a negative shift hangs the core (RTL test t3) |
 | Warning: virtual-Z gates (`Z90`, `Y-90`, `CNOT`) inside loops | a blanket warning on every loop |
@@ -456,9 +457,9 @@ IR   read; {'name':'branch_fproc','cond_lhs':1,'alu_cond':'eq','func_id':'Q0.mea
 
 ```
 QD   qubit Q1, Q2;
-     par { { X90(Q1); } { X90(Q2); } }
+     parallel { X90(Q1); | X90(Q2); }
      CNOT(Q2, Q1);
-     par { { measure(Q1); } { measure(Q2); } }
+     parallel { measure(Q1); | measure(Q2); }
 core 1 (qubit_command1)
 @1 900803000200004008f68600000000a0  t=5   Q1.qdrv X90
 @2 90080400320000400848ee00000014e0  t=167 Q1.qdrv CNOT part 2
@@ -472,8 +473,9 @@ core 2 (qubit_command2)
 ```
 
 Two independent streams with no synchronizing instruction. The CNOT barrier
-aligns both cores at its start (t = 17), and QD's second `par` aligns the
-readouts at t = 183. In the raw IR without that alignment, each qubit runs as
+aligns both cores at its start (t = 17). QD's second `parallel` block puts both
+readouts behind one barrier, so on two cores the schedule starts them together
+at t = 183 (`parallel` itself does not promise a common start). In the raw IR without that alignment, each qubit runs as
 early as possible after the CNOT and the readouts are skewed: Q2 at 167, Q1 at
 183 (verified).
 
@@ -486,7 +488,7 @@ core 0: @1 t=5 Q0.qdrv   @2 t=8 Q0.rdrv        core 1: @1 t=5 Q1.qdrv
 
 All three start together. Pulses on the same core are 3 clocks apart because one
 core issues at most one pulse word per 3 clocks. In QD the same three statements
-run one after another; `par` makes them simultaneous.
+run one after another; `parallel` lets them overlap.
 
 ### Example 0 — the original amplitude sweep, verbatim IR
 
@@ -813,7 +815,7 @@ QD examples compiled by the patched toolchain.
 
 | Check | Program | Result |
 | --- | --- | --- |
-| Cross-core alignment | `mc_align.qd` | parallel X90s on cores 1 and 2 in the same clock (cycle 4227); `par` readout in the same clock (4405) |
+| Cross-core alignment | `mc_align.qd` | parallel X90s on cores 1 and 2 in the same clock (cycle 4227); `parallel` readouts in the same clock (4405) |
 | Cross-core feedback | `mc_feedback.qd`, 3 shots, Q0 measures 1, 0, 1 | X90s on Q1 in shots 0 and 2 only; both cores request the result in the same clock (qclk 1372), with the same 1-clock margin as on one core |
 | Deterministic shots | same | join readout at qclk 1406 in every shot; every shot takes 2781 clocks |
 | Results survive the shot reset | same | `meas_reg` is 1, 2 (`0b10`), 3 (`0b11`) at the three requests (bit k = core k): Q1's bit from shot 0 is still latched in shot 1 |

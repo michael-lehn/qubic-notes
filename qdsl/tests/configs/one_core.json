@@ -1,0 +1,39 @@
+{
+  "fpga_clk_freq": 500000000.0,
+  "Q0.qdrv": {
+    "core_ind": 0,
+    "elem_ind": 0,
+    "core_name": "qubit",
+    "env_mem_name": "qubit_qdrv_env0",
+    "freq_mem_name": "qubit_qdrv_freq0",
+    "elem_params": {
+      "interp_ratio": 4,
+      "samples_per_clk": 16
+    },
+    "elem_type": "rf"
+  },
+  "Q1.qdrv": {
+    "core_ind": 0,
+    "elem_ind": 1,
+    "core_name": "qubit",
+    "env_mem_name": "qubit_qdrv_env1",
+    "freq_mem_name": "qubit_qdrv_freq1",
+    "elem_params": {
+      "interp_ratio": 4,
+      "samples_per_clk": 16
+    },
+    "elem_type": "rf"
+  },
+  "Q2.qdrv": {
+    "core_ind": 0,
+    "elem_ind": 2,
+    "core_name": "qubit",
+    "env_mem_name": "qubit_qdrv_env2",
+    "freq_mem_name": "qubit_qdrv_freq2",
+    "elem_params": {
+      "interp_ratio": 4,
+      "samples_per_clk": 16
+    },
+    "elem_type": "rf"
+  }
+}
