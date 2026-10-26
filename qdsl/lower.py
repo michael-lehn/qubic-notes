@@ -15,7 +15,20 @@ each timed statement we insert barrier(previous footprint | this footprint).
 `par` branches start together (barrier over all branches) and the next
 statement waits for the longest one.  Barriers do not carry across QubiC basic
 blocks, so every branch body starts with its own barrier (loops get one from
-FlattenProgram)."""
+FlattenProgram).
+
+Cross-core order.  Cores agree on time only through timestamps.  QubiC rewinds
+qclk by the body length at the end of every loop iteration (inc_qclk -delta) and
+schedules what follows a loop from the loop's start time (passes.py:1020-1026);
+that is right only on cores that ran the loop.  A core outside the loop would
+fire its next pulse while the loop is still running.  So:
+  - a runtime loop also spans every qubit with a quantum operation after it
+    (`later`), and those cores run its control flow, reading the same registers
+    and FPROC results (control-flow replication);
+  - every core that runs a loop, or reads a measurement result, must have run
+    the same runtime loops and delays before, so that its qclk maps to the same
+    physical time (`_check_frames`).  Otherwise the program is rejected: two
+    runtime loops in different par branches cannot both be followed by one core."""
 from __future__ import annotations
 
 from .diag import QdError
@@ -31,6 +44,8 @@ class Lowering:
         # every qubit the program touches; runtime delays span all of them
         self.all_qubits = {q for n in self._walk(mir) if isinstance(n, MTimed) and n.qubits for q in n.qubits} | \
                           {n.measured for n in self._walk(mir) if isinstance(n, MIf) and n.measured}
+        self.later: dict[int, set] = {}                 # loop -> qubits with quantum operations after it
+        self._mark_later(mir, set())
 
     # ------------------------------------------------------------ queries
     @staticmethod
@@ -54,7 +69,33 @@ class Lowering:
              {n.measured for n in self._walk(nodes) if isinstance(n, MIf) and n.measured}
         if any(isinstance(n, MTimed) and n.kind == 'rdelay' for n in self._walk(nodes)):
             qs |= self.all_qubits
+        for n in self._walk(nodes):
+            if isinstance(n, MLoop):
+                qs |= self.later[id(n)]
         return qs
+
+    def _op_qubits(self, nodes) -> set:
+        """Qubits of the quantum operations (pulses, gates, reads, runtime delays) in nodes."""
+        qs = set()
+        for n in self._walk(nodes):
+            if isinstance(n, MTimed) and n.kind in ('pulse', 'gate'):
+                qs |= set(n.qubits)
+            elif isinstance(n, MTimed) and n.kind == 'rdelay':
+                qs |= self.all_qubits
+        return qs
+
+    def _mark_later(self, nodes: list, after: set):
+        """later[loop] = qubits whose operations must wait for the loop: the rest of every
+        enclosing sequence, the whole body of every enclosing loop (its next iteration), and
+        nothing from other par branches."""
+        for i, n in enumerate(nodes):
+            rest = self._op_qubits(nodes[i + 1:]) | after
+            if isinstance(n, MLoop):
+                self.later[id(n)] = rest
+                self._mark_later(n.body, rest | self._op_qubits(n.body))
+            else:
+                for child in self._children(n):
+                    self._mark_later(child, rest)
 
     def _vars_in(self, nodes) -> set:
         vs = set()
@@ -196,11 +237,77 @@ class Lowering:
         q = func_id.removesuffix('.meas')
         problem = self.t.cores.fproc_problem(q, self.t.cores.cores_of(*readers))
         if problem:
+            followers = sorted(set(readers) & set().union(*self.later.values()) - {q})
+            if followers:
+                problem += (f"\n{', '.join(followers)} must follow a loop that depends on this result: an "
+                            'operation after a runtime loop starts only once the loop has ended, so its core '
+                            "repeats the loop's control flow and needs the result too.")
             raise QdError(pos, f'measurement feedback on {q} could read the wrong result', problem)
+
+    # ------------------------------------------------------------ cross-core time frames
+    def _cores(self, qubits) -> set:
+        return set(self.t.cores.cores_of(*qubits)) if qubits else set()
+
+    def _check_frames(self):
+        """Each core runs its loops and runtime delays in program order; its qclk maps to
+        physical time through the ones it has run.  Cores that run a loop together, or read a
+        measurement together with the measuring core, must have run the same ones before."""
+        self._frames(self.mir, {})
+
+    def _same_frame(self, cores: set, hist: dict, what: str, pos):
+        seen = {}
+        for c in sorted(cores):
+            seen.setdefault(hist.get(c, ()), c)
+        if len(seen) < 2:
+            return
+        (ha, a), (hb, b) = sorted(seen.items(), key=lambda kv: len(kv[0]), reverse=True)[:2]
+        extra = next(e for e in ha if e not in hb)
+        raise QdError(pos, f'cannot guarantee the order of {what}: processor cores {a} and {b} both take part, '
+                      f'but only {a} has run the {extra[1]} at line {extra[2].line} before',
+                      'a core runs its control flow in program order, and cores agree on time only through '
+                      'timestamps.\nAfter a runtime loop, every core with later operations repeats the loop to '
+                      'stay in step; one core cannot\nfollow two runtime loops that run at the same time in '
+                      'different par branches, and current QubiC hardware\nhas no runtime barrier. Make the loops '
+                      'sequential, unroll fixed counts (#unroll for), or drop the\noperations that need both.')
+
+    def _frames(self, nodes: list, hist: dict):
+        for n in nodes:
+            if isinstance(n, MClassical) and n.ir['name'] == 'read_fproc':
+                q = n.ir['func_id'].removesuffix('.meas')
+                self._same_frame(self._cores(self.var_scope[n.ir['var']]) | self._cores({q}), hist,
+                                 f'the measurement of {q}', n.pos)
+            elif isinstance(n, MTimed) and n.kind == 'rdelay':
+                for c in self._cores(self.all_qubits):
+                    hist[c] = hist.get(c, ()) + (('rdelay', 'runtime delay', n.pos),)
+            elif isinstance(n, MLoop):
+                cores = self._cores(self.node_scope[id(n)])
+                self._same_frame(cores, hist, 'the loop', n.pos)
+                before = {c: hist.get(c, ()) for c in cores}
+                self._frames(n.body, hist)
+                for c in cores:
+                    hist[c] = before[c] + (('loop', 'runtime loop', n.pos, hist.get(c, ())[len(before[c]):]),)
+            elif isinstance(n, MIf):
+                cores = self._cores(self.node_scope[id(n)])
+                if n.func_id:
+                    q = n.func_id.removesuffix('.meas')
+                    self._same_frame(cores | self._cores({q}), hist, f'the measurement of {q}', n.pos)
+                before = {c: hist.get(c, ()) for c in cores}
+                arms = []
+                for arm in (n.then, n.els):
+                    h = dict(hist)
+                    self._frames(arm, h)
+                    arms.append(h)
+                for c in cores:
+                    inner = tuple(h.get(c, ())[len(before[c]):] for h in arms)
+                    hist[c] = before[c] + ((('if', 'branch with a runtime loop', n.pos, inner),) if any(inner) else ())
+            elif isinstance(n, MPar):
+                for b in n.branches:                      # cores run the branches in this order
+                    self._frames(b, hist)
 
     # ------------------------------------------------------------ emission
     def emit(self) -> list[dict]:
         self.infer_scopes()
+        self._check_frames()
         decls = [{'name': 'declare', 'var': v, 'dtype': 'int' if info.type == 'time' else info.type,
                   'scope': sorted(self.var_scope[v])}
                  for v, info in self.sema.vars.items()]

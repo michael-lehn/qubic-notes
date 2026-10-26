@@ -5,8 +5,14 @@ Environment:
   QD_NSHOT   number of shots (default 1)
   QD_ADC     per-shot ADC values per core, shots separated by ';', cores by ',',
              e.g. "1,-1,1;-1,-1,1" (default 1 for every core); the last entry repeats
+  QD_MEAS    force measurement bits instead of the demodulated sign, per core and in order
+             of measurement, e.g. "0:1,1,0" or "0:1,0;2:1" (the last bit repeats)
   QD_OUT     write the event record as JSON here
   QD_MAX     give up after this many clocks (default 5,000,000)
+
+Besides strobes, measurements and FPROC requests, the record has one 'issue' event per timed
+instruction (pulse_write_trig, idle): the core's qclk when it starts waiting, the timestamp t,
+and slack = t - qclk. A negative slack is a late trigger: the instruction never fires.
 """
 import json
 import os
@@ -32,10 +38,18 @@ async def run_shots(dut):
     nshot = int(os.environ.get('QD_NSHOT', '1'))
     adc = [[int(v) for v in shot.split(',')] for shot in os.environ.get('QD_ADC', ','.join(['1'] * N)).split(';')]
     max_cycles = int(os.environ.get('QD_MAX', 5_000_000))
+    force = {int(k): [int(b) for b in bits.split(',')]
+             for k, bits in (c.split(':') for c in os.environ.get('QD_MEAS', '').split(';') if c)}
 
     cocotb.start_soon(Clock(dut.clk, CLK_NS, unit='ns').start())
     dut.reset.value, dut.stb_start.value, dut.nshot.value = 1, 0, nshot
     dut.cmd_write_enable.value, dut.mem_we.value, dut.acc_shift.value = 0, 0, 0
+    dut.meas_force_en.value = sum(1 << k for k in force)
+    forced = {k: 0 for k in force}                      # measurements seen per forced core
+
+    def set_force():
+        dut.meas_force_bit.value = sum(bits[min(forced[k], len(bits) - 1)] << k for k, bits in force.items())
+    set_force()
     await RisingEdge(dut.clk)
 
     for k in range(N):                                  # load programs and waveform memories
@@ -83,6 +97,19 @@ async def run_shots(dut):
             await ReadOnly()
             events.append(dict(cycle=cycle(), kind='meas_valid', core=k, qclk=int(q.dpr.qclk_out.value),
                                bit=int(q.meas_bit.value)))
+            if k in forced:
+                await RisingEdge(dut.clk)                       # fproc_meas has latched this bit
+                forced[k] += 1
+                set_force()
+
+    async def watch_issue(k):
+        dpr = cores[k].dpr
+        while True:
+            await RisingEdge(dpr.ctu.qclk_trig_enable)
+            await ReadOnly()
+            q, t = int(dpr.qclk_out.value), int(dpr.pulse_cmd_time.value)
+            slack = (t - q + (1 << 31)) % (1 << 32) - (1 << 31)     # qclk wraps (inc_qclk -delta); == compare
+            events.append(dict(cycle=cycle(), kind='issue', core=k, qclk=q, t=t, slack=slack))
 
     async def watch_shots():
         shot = 0
@@ -96,6 +123,7 @@ async def run_shots(dut):
         cocotb.start_soon(watch_strobes(k))
         cocotb.start_soon(watch_fproc(k))
         cocotb.start_soon(watch_meas(k))
+        cocotb.start_soon(watch_issue(k))
     cocotb.start_soon(watch_shots())
 
     set_adc(0)
@@ -113,12 +141,19 @@ async def run_shots(dut):
         if e['kind'] == 'shot_start':
             shot = e['shot']
         e['shot'] = shot
+        if e['kind'] == 'issue':
+            continue
         if e['kind'] != 'shot_start':
             extra = ' '.join(f'{k}={e[k]}' for k in ('cfg', 'amp', 'bit', 'meas_reg') if k in e)
             dut._log.info(f"EVENT shot {shot} cycle {e['cycle']:8d} core {e['core']} qclk {e['qclk']:7d} "
                           f"{e['kind']:13s} {extra}")
         else:
             dut._log.info(f"EVENT shot {shot} cycle {e['cycle']:8d} shot_start")
+    issues = [e for e in events if e['kind'] == 'issue']
+    if issues:
+        worst = min(issues, key=lambda e: e['slack'])
+        dut._log.info(f"SLACK min {worst['slack']} (core {worst['core']}, t={worst['t']}), "
+                      f"{sum(e['slack'] < 0 for e in issues)} late of {len(issues)} timed instructions")
     dut._log.info(f'DONE {finished}')
     if os.environ.get('QD_OUT'):
         json.dump(dict(done=finished, events=sorted(events, key=lambda e: e['cycle'])), open(os.environ['QD_OUT'], 'w'))

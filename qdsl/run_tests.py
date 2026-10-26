@@ -97,6 +97,9 @@ def main() -> int:
     print('cores')
     from . import test_cores
     failures += test_cores.main()
+    print('sequencing')
+    from . import test_sequencing
+    failures += test_sequencing.main()
     print('PASS' if not failures else f'{failures} FAILURE(S)')
     return 1 if failures else 0
 

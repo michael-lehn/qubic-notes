@@ -34,6 +34,8 @@ module qcore #(parameter CMD_ADDR_WIDTH = 16)(
     input mem_we,
     input [15:0] adc_sample,
     input [4:0] acc_shift,
+    input meas_force_en,                 // testbench only: replace the demodulated sign bit
+    input meas_force_bit,
     fproc_iface.proc fproc,
     output procdone,
     output reg nobusy,
@@ -137,7 +139,7 @@ module qcore #(parameter CMD_ADDR_WIDTH = 16)(
     always @(posedge clk) begin
         fproc_data_valid_r <= accvalid;                                      // dsp_coregen.py:262
         meas_valid <= fproc_data_valid_r;                                    // dsp_build.py:403
-        meas_bit <= accx[31];                                                // dsp_build.py:404
+        meas_bit <= meas_force_en ? meas_force_bit : accx[31];               // dsp_build.py:404 (+ test override)
         nobusy <= ~|{qdrv_elem.busy, rdrv_elem.busy, rdlo_elem.busy};        // dsp_coregen.py:372-376
     end
 endmodule
@@ -157,6 +159,8 @@ module multicore_top #(parameter N = 3, parameter CMD_ADDR_WIDTH = 16)(
     input mem_we,
     input [16*N-1:0] adc_samples,
     input [4:0] acc_shift,
+    input [N-1:0] meas_force_en,         // testbench only: per-core measurement override
+    input [N-1:0] meas_force_bit,
     output reg done,                     // all shots finished
     output reg [31:0] shotcnt);
 
@@ -170,7 +174,8 @@ module multicore_top #(parameter N = 3, parameter CMD_ADDR_WIDTH = 16)(
             .clk(clk), .reset(procreset_d),
             .cmd_write_addr(cmd_write_addr), .cmd_write(cmd_write), .cmd_write_enable(cmd_write_enable && core_sel == k),
             .mem_sel(mem_sel), .mem_addr(mem_addr), .mem_data(mem_data), .mem_we(mem_we && core_sel == k),
-            .adc_sample(adc_samples[16*k +: 16]), .acc_shift(acc_shift), .fproc(fproc_if[k]),
+            .adc_sample(adc_samples[16*k +: 16]), .acc_shift(acc_shift),
+            .meas_force_en(meas_force_en[k]), .meas_force_bit(meas_force_bit[k]), .fproc(fproc_if[k]),
             .procdone(procdone[k]), .nobusy(nobusy[k]), .meas_valid(meas_valid[k]), .meas_bit(meas_bit[k]));
     end endgenerate
 
