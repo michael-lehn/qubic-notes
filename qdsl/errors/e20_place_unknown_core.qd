@@ -1,0 +1,4 @@
+// expect: no core board0.core8
+qubit Q0;
+place Q0 on board0.core8;
+X90(Q0);

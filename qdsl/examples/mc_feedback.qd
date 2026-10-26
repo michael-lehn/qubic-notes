@@ -1,5 +1,6 @@
 // Cross-core feedback: the measurement of Q0 (core 0) decides two X90s on Q1
 // (core 1). Both cores evaluate the branch; core 1 reads core 0's result.
 qubit Q0, Q1;
+place Q0 on board0.core0, Q1 on board0.core1;
 if measure(Q0) == 1 { X90(Q1); X90(Q1); }
 measure(Q1);

@@ -1,3 +1,4 @@
 // expect: a loop condition cannot read a measurement directly
 qubit Q0;
+place Q0 on board0.core0;
 do { X90(Q0); } while measure(Q0) == 1;

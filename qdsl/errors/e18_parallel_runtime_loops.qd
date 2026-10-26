@@ -2,6 +2,7 @@
 // Two runtime loops in parallel branches, then an operation that must follow both:
 // core 2 would have to repeat both loops at once.
 qubit Q0, Q1, Q2;
+place Q0 on board0.core0, Q1 on board0.core1, Q2 on board0.core2;
 m0 := 1;
 m1 := 1;
 parallel {

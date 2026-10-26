@@ -41,6 +41,11 @@ from .target import N_REGS, CoreId, Target
 class Lowering:
     def __init__(self, sema: Sema, mir: list, target: Target):
         self.sema, self.mir, self.t = sema, mir, target
+        # Scopes map to cores through target.cores. Sema accepted only placements that agree
+        # with it, so the explicit placements and the configuration are the same mapping.
+        for ch, (core, pos) in sema.placements.items():
+            if target.cores.core_of_channel(ch) != core:
+                raise QdError(pos, f'internal error: placement of {ch} disagrees with the channel configuration')
         self.var_scope: dict[str, set] = {v: set() for v in sema.vars}
         self.node_scope: dict[int, set] = {}
         # every qubit the program touches; runtime delays span all of them

@@ -1,3 +1,4 @@
 // expect: a plain number has no unit
 qubit Q0;
+place Q0 on board0.core0;
 delay(500);

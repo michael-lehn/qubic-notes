@@ -1,0 +1,14 @@
+// One logical qubit on two processor cores: Q1's drive on core 1, its readout
+// drive and demodulator on core 2. The result is used on core 0 (Q0).
+// compile with --channels qdsl/tests/configs/spread_qubit.json
+qubit Q0, Q1;
+place Q0 on board0.core0;
+place Q1.qdrv on board0.core1,
+      Q1.rdrv on board0.core2,
+      Q1.rdlo on board0.core2;
+
+X90(Q1);
+m := measure(Q1);
+if m == 1 {
+    X90(Q0);
+}

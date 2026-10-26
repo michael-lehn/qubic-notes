@@ -1,3 +1,4 @@
 // expect: outside [-1, 1]
 qubit Q0;
+place Q0 on board0.core0;
 a : amp = 1.5;

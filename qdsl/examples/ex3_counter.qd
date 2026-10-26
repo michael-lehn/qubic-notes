@@ -1,4 +1,5 @@
 qubit Q0;
+place Q0 on board0.core0;
 for i in 0..<5 {               // i becomes an int register
     X90(Q0);
 }

@@ -2,6 +2,7 @@
 //
 // Declarations (Pascal/Odin style, ':' reads "of type"):
 //   qubit Q0, Q1;
+//   place Q0 on board0.core0;  hardware placement, checked against the configuration
 //   WAIT : time : 500 us;      constant  (compile time)
 //   WAIT :: 500 us;            constant, type inferred
 //   a : amp = 0.1;             variable  (register on the cores that use it)
@@ -16,12 +17,17 @@
 start: item*
 
 ?item: qubit_decl
+     | place_decl
      | const_decl
      | var_decl
      | proc_decl
      | stmt
 
 qubit_decl: "qubit" NAME ("," NAME)* ";"
+
+// place Q0 on board0.core0, Q1.qdrv on board0.core1;   (BOARD.coreN or BOARD.TYPE.coreN)
+place_decl: "place" placement ("," placement)* ";"
+placement: NAME ["." NAME] "on" NAME "." NAME ["." NAME]
 
 const_decl: NAME ":" type ":" expr ";"       -> const_typed
           | NAME "::" expr ";"               -> const_inferred

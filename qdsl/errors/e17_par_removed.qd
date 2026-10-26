@@ -1,3 +1,4 @@
 // expect: par was replaced by  parallel
 qubit Q0, Q1;
+place Q0 on board0.core0, Q1 on board0.core1;
 par { { X90(Q0); } { X90(Q1); } }

@@ -6,11 +6,12 @@ from __future__ import annotations
 
 import difflib
 import math
+import os
 from dataclasses import dataclass, field
 
 from . import syntax as A
 from .diag import Diagnostics, Pos, QdError
-from .target import CHANNELS, DEFAULT_FREQ, Target
+from .target import CHANNELS, DEFAULT_FREQ, CoreId, PlacementError, Target
 
 UNITS = {'ns': ('time', 1e-9), 'us': ('time', 1e-6), 'ms': ('time', 1e-3), 's': ('time', 1.0),
          'Hz': ('freq', 1.0), 'kHz': ('freq', 1e3), 'MHz': ('freq', 1e6), 'GHz': ('freq', 1e9)}
@@ -102,6 +103,7 @@ class Sema:
         self.t = target
         self.diag = diag
         self.qubits: dict[str, Pos] = {}
+        self.placements: dict[str, tuple[CoreId, Pos]] = {}    # channel -> (core, where declared)
         self.vars: dict[str, VarInfo] = {}
         self.procs: dict[str, A.ProcDecl] = {}
         self.env: list[dict[str, CVal]] = [{}]
@@ -301,6 +303,59 @@ class Sema:
                 raise QdError(d.pos, f"no calibrated qubit '{q}' in {self.t.qchip_path}")
             self.qubits[q] = d.pos
         return []
+
+    def _PlaceDecl(self, d: A.PlaceDecl):
+        """A placement states which core a channel is wired to. The channel configuration
+        fixes that wiring, so a placement is checked against it and never changes it."""
+        if self.inlining or len(self.env) > 1:
+            raise QdError(d.pos, 'place must be at top level')
+        cores = self.t.cores
+        for p in d.placements:
+            if p.qubit not in self.qubits:
+                raise QdError(p.pos, f"unknown qubit '{p.qubit}'",
+                              self._suggest(p.qubit) or f'declare it first:  qubit {p.qubit};')
+            if p.channel is None:
+                channels = cores.channels_of_qubit(p.qubit)
+            else:
+                ch = f'{p.qubit}.{p.channel}'
+                if not cores.is_channel(ch):
+                    what = 'is not in the channel configuration' if p.channel in CHANNELS else 'is not a channel'
+                    raise QdError(p.pos, f"'{ch}' {what}",
+                                  f'{p.qubit} has: ' + ', '.join(cores.channels_of_qubit(p.qubit)))
+                channels = (ch,)
+            try:
+                core = cores.resolve_core(p.board, p.core, p.core_type)
+            except PlacementError as e:
+                raise QdError(p.target_pos, e.msg, e.hint) from None
+            for ch in channels:
+                if ch in self.placements and self.placements[ch][0] != core:
+                    prev, where = self.placements[ch]
+                    raise QdError(p.pos, f"conflicting placement of '{ch}': {cores.core_label(core)} here, "
+                                  f'{cores.core_label(prev)} at line {where.line}')
+            wrong = [ch for ch in channels if cores.core_of_channel(ch) != core]
+            if wrong:
+                raise QdError(p.pos, self._wiring_msg(p, core, wrong), self._wiring_hint(p.qubit, channels))
+            for ch in channels:
+                self.placements[ch] = (core, p.pos)
+        return []
+
+    def _wiring_msg(self, p: A.Placement, core: CoreId, wrong: list[str]) -> str:
+        cores = self.t.cores
+        on = ', '.join(f'{ch} to {cores.core_label(cores.core_of_channel(ch))}' for ch in wrong)
+        obj = p.qubit if p.channel is None else f'{p.qubit}.{p.channel}'
+        path = os.path.relpath(self.t.channels_path)
+        path = self.t.channels_path if path.startswith('..') else path
+        return f'cannot place {obj} on {cores.core_label(core)}: the channel configuration ({path}) wires {on}'
+
+    def _wiring_hint(self, qubit: str, channels) -> str:
+        cores = self.t.cores
+        where = {ch: cores.core_label(cores.core_of_channel(ch)) for ch in channels}
+        if len(set(where.values())) == 1 and set(channels) == set(cores.channels_of_qubit(qubit)):
+            fix = f'place {qubit} on {next(iter(where.values()))};'
+        else:
+            fix = 'place ' + ', '.join(f'{ch} on {c}' for ch, c in where.items()) + ';'
+        return ('place states where a channel is wired; it cannot rewire it. Write\n'
+                f'  {fix}\nor compile with a channel configuration that has the wiring you want (--channels)')
 
     def _ConstDecl(self, d: A.ConstDecl):
         self._taken(d.name, d.pos)

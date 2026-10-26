@@ -1,4 +1,5 @@
 // expect: delay needs a time
 qubit Q0;
+place Q0 on board0.core0;
 tau : int = 100;
 delay(tau);

@@ -1,6 +1,8 @@
 """Check that every QD snippet in docs/reference.md is valid QD.
 
-- ```odin blocks: complete programs, compiled by the QD front end and QubiC.
+- ```odin blocks: complete programs, compiled by the QD front end and QubiC, against
+  the vendored channel configuration or the one named by a comment
+  `// compile with --channels PATH` in the block.
 - `QD ...` lines in code blocks (with 5-space continuation lines): complete
   programs, compiled; if the block also lists machine words (`@n <32 hex>`),
   every listed word must appear in the compiled program.
@@ -20,8 +22,8 @@ import sys
 from qdsl import backend
 from qdsl.cli import front_end, quiet_qubic
 from qdsl.diag import QdError
+from qdsl.run_tests import target_for
 from qdsl.syntax import parse
-from qdsl.target import Target
 
 PRELUDE = 'qubit Q0, Q1, Q2;\n'
 WORD = re.compile(r'^@\d+\s+([0-9a-f]{32})\b', re.M)
@@ -40,8 +42,9 @@ def grammar_error(fragment: str):
     return None
 
 
-def compile_error(program: str, target: Target, listed: list[int]):
+def compile_error(program: str, targets: dict, listed: list[int]):
     try:
+        target = target_for(program, targets)
         ir, _ = front_end(program, 'doc', target)
         words = {w for ws in backend.build(ir, target).words().values() for w in ws}
     except QdError as e:
@@ -102,11 +105,11 @@ def main() -> int:
     quiet_qubic()
     logging.disable(logging.WARNING)
     paths = sys.argv[1:] or ['docs/reference.md']
-    target = Target()
+    targets: dict = {}
     bad = total = 0
     for path, (line, kind, code, listed) in ((p, s) for p in paths for s in snippets(open(p).read())):
         total += 1
-        err = grammar_error(code) if listed is None else compile_error(code, target, listed)
+        err = grammar_error(code) if listed is None else compile_error(code, targets, listed)
         bad += err is not None
         one = ' '.join(code.split())
         print(f'{"ok  " if err is None else "FAIL"} {path}:{line:<4d} {kind:12s} {one[:50]}'

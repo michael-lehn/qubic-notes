@@ -1,5 +1,6 @@
 // Same three pulses, sequential vs parallel.
 qubit Q0, Q1;
+place Q0 on board0.core0, Q1 on board0.core1;
 P :: cos_edge_square(0.25);
 
 pulse(Q0.qdrv, amp = 0.5, width = 32 ns, env = P);   // t = 5

@@ -1,4 +1,5 @@
 // expect: '<=' is not available in a loop condition for amp
 qubit Q0;
+place Q0 on board0.core0;
 a : amp = 0.1;
 do { X90(Q0); a += 0.1; } while a <= 1.0;

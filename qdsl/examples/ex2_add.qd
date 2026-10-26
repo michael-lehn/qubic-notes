@@ -1,4 +1,5 @@
 qubit Q0;
+place Q0 on board0.core0;
 a : int = 3;
 b : int = 4;
 c := a + b;                    // type inferred from a and b

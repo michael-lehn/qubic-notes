@@ -1,5 +1,6 @@
 // expect: ordering compare on amp register 'a'
 qubit Q0;
+place Q0 on board0.core0;
 a : amp = 0.5;
 a -= 0.1;
 if a < 1.0 { X90(Q0); }

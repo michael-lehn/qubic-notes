@@ -1,6 +1,7 @@
 // Regression: a loop followed only by a delay crashed QubiC's Schedule pass
 // (empty basic block, passes.py:1020). Fixed by patches/distproc-02-empty-block.patch.
 qubit Q0;
+place Q0 on board0.core0;
 n := 0;
 do { X90(Q0); n += 1; } while n < 3;
 delay(1 us);

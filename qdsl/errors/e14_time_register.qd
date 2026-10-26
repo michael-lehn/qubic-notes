@@ -1,3 +1,4 @@
 // expect: freq registers are not supported
 qubit Q0;
+place Q0 on board0.core0;
 f : freq = 5 GHz;

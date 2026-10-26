@@ -1,5 +1,6 @@
 // T1 sweep: delays must be constants, so the sweep is unrolled at compile time.
 qubit Q0;
+place Q0 on board0.core0;
 REP :: 500 us;
 
 pi_pulse :: proc(q: qubit) { X90(q); X90(q); }

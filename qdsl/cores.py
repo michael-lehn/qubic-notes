@@ -20,9 +20,21 @@ QubiC itself validates none of this when loading a configuration, and its groupi
 proc_grouping_from_channelconfig keys cores by string concatenation (compiler.py:303), which
 can merge distinct cores. QD therefore validates the configuration here and builds the
 processor grouping from CoreId tuples.
+
+QD names for cores (used by `place`):
+
+    BOARD.coreN          the core with core_ind N on BOARD
+    BOARD.TYPE.coreN     the same, naming its core type (core_name); required when
+                         several core types on BOARD have core_ind N
+
+BOARD is the configuration's board_name. Channels without board_name are on the board
+QubiC leaves unnamed (''); QD calls it 'board0'. A board_name that is not a QD
+identifier, or 'board0' in a configuration that also has unnamed channels, cannot be
+written in QD.
 """
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 
@@ -35,6 +47,9 @@ REQUIRED = {'core_ind': int, 'elem_ind': int, 'elem_type': str, 'elem_params': d
 OPTIONAL = {'core_name': (str, type(None)), 'board_name': str,
             'env_mem_name': (str, type(None)), 'freq_mem_name': (str, type(None)),
             'acc_mem_name': (str, type(None))}
+UNNAMED_BOARD = 'board0'                        # QD name of board_name ''
+_IDENT = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
+_CORE = re.compile(r'core(0|[1-9][0-9]*)')
 
 
 @dataclass(frozen=True, order=True)
@@ -53,6 +68,14 @@ class CoreId:
         """(board, memory) receiving this core's program, as the assembler names it."""
         name = f'{self.core_name}_command{self.core_ind}' if self.core_name else f'command{self.core_ind}'
         return (self.board_name, name)
+
+
+class PlacementError(Exception):
+    """A QD core name does not denote exactly one configured core."""
+
+    def __init__(self, msg: str, hint: str | None = None):
+        super().__init__(msg)
+        self.msg, self.hint = msg, hint
 
 
 class ConfigError(Exception):
@@ -141,6 +164,53 @@ class CoreModel:
 
     def qubit_scoper(self) -> qir.QubitScoper:
         return _ConfigQubitScoper(self.qubit_channels)
+
+    # ------------------------------------------------------------ QD core names
+    def boards(self) -> dict[str, str]:
+        """QD board name -> board_name, for every board that QD can name."""
+        names = {c.board_name for c in self.core_channels}
+        out = {}
+        for b in sorted(names):
+            qd = b or UNNAMED_BOARD
+            if _IDENT.fullmatch(qd) and not (b == UNNAMED_BOARD and '' in names):
+                out[qd] = b
+        return out
+
+    def core_label(self, core: CoreId) -> str:
+        """The QD name of a core: BOARD.coreN, or BOARD.TYPE.coreN if coreN is ambiguous."""
+        board = core.board_name or UNNAMED_BOARD
+        same_ind = [c for c in self.core_channels if c.board_name == core.board_name and c.core_ind == core.core_ind]
+        if len(same_ind) > 1 and core.core_name:
+            return f'{board}.{core.core_name}.core{core.core_ind}'
+        return f'{board}.core{core.core_ind}'
+
+    def resolve_core(self, board: str, core: str, core_type: str | None = None) -> CoreId:
+        """The core named BOARD.coreN or BOARD.TYPE.coreN. Raises PlacementError."""
+        boards = self.boards()
+        if board not in boards:
+            hint = None
+            if board == UNNAMED_BOARD and UNNAMED_BOARD in {c.board_name for c in self.core_channels}:
+                hint = (f"the configuration has unnamed channels and a board named '{UNNAMED_BOARD}'; "
+                        f"QD cannot tell them apart")
+            raise PlacementError(f"no board '{board}' in the channel configuration",
+                                 hint or 'boards: ' + (', '.join(boards) or 'none that QD can name'))
+        bname = boards[board]
+        on_board = sorted(c for c in self.core_channels if c.board_name == bname)
+        known = ', '.join(dict.fromkeys(self.core_label(c) for c in on_board))
+        m = _CORE.fullmatch(core)
+        if not m:
+            raise PlacementError(f"'{core}' is not a core name; cores are written coreN (N = core_ind)",
+                                 f'cores on {board}: {known}')
+        ind = int(m.group(1))
+        cands = [c for c in on_board if c.core_ind == ind and (core_type is None or c.core_name == core_type)]
+        what = f'{board}.{core_type}.{core}' if core_type else f'{board}.{core}'
+        if not cands:
+            raise PlacementError(f"no core {what} in the channel configuration", f'cores on {board}: {known}')
+        if len(cands) > 1:
+            raise PlacementError(f'{what} is ambiguous: core types '
+                                 f"{', '.join(repr(c.core_name) for c in cands)} all have core_ind {ind}",
+                                 'write ' + ' or '.join(self.core_label(c) for c in cands))
+        return cands[0]
 
     def fproc_problem(self, qubit: str, readers: frozenset[CoreId] = frozenset()) -> str | None:
         """Why measurement feedback on this qubit, read by these cores, could address the wrong

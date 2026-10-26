@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import sys
 from pathlib import Path
 
@@ -14,7 +15,23 @@ from .diag import Diagnostics, QdError
 from .target import Target
 
 HERE = Path(__file__).parent
+REPO = HERE.parent
 logging.disable(logging.WARNING)       # QubiC's "Z-phase inside loops" warning is noise here
+
+
+def channels_of(source: str) -> str | None:
+    """The channel configuration a program is written for: a comment
+    `// compile with --channels PATH` (PATH relative to the repository), else None
+    (the vendored default)."""
+    m = re.search(r'^\s*//.*--channels\s+(\S+)', source, re.M)
+    return str(REPO / m.group(1)) if m else None
+
+
+def target_for(source: str, targets: dict) -> Target:
+    path = channels_of(source)
+    if path not in targets:
+        targets[path] = Target() if path is None else Target(channels_path=path)
+    return targets[path]
 
 
 def pulses(b: backend.Build) -> list[tuple[int, str]]:
@@ -59,16 +76,23 @@ def check_example(name: str, b: backend.Build):
         assert len(b.words()['qubit_command0']) < 22, 'should beat the unrolled version'
     elif name == 'loop_then_delay':
         assert len(b.words()['qubit_command0']) > 0                  # compiled at all
+    elif name == 'place_shared_core':
+        assert set(b.words()) == {'qubit_command0'}, sorted(b.words())
+        assert start(ps, 'Q1.qdrv') >= start(ps, 'Q0.qdrv') + 3, ps     # one core issues the branches in turn
+    elif name == 'place_spread_qubit':
+        assert set(b.words()) == {'qubit_command0', 'qubit_command1', 'qubit_command2'}, sorted(b.words())
+        assert start(ps, 'Q1.rdrv') >= start(ps, 'Q1.qdrv') + 12, ps    # readout after the X90, across cores
     elif name == 'ex3_counter':
         assert any('jump_cond' == i['op'] for i in b.asm.program[('Q0.qdrv', 'Q0.rdrv', 'Q0.rdlo')])
 
 
 def main() -> int:
-    target = Target()
+    targets: dict = {}
     failures = 0
     print('examples')
     for f in sorted((HERE / 'examples').glob('*.qd')):
         try:
+            target = target_for(f.read_text(), targets)
             ir, diag = front_end(f.read_text(), f.name, target)
             b = backend.build(ir, target)
             check_example(f.stem, b)
@@ -84,7 +108,7 @@ def main() -> int:
         src = f.read_text()
         expect = src.splitlines()[0].removeprefix('// expect:').strip()
         try:
-            front_end(src, f.name, target)
+            front_end(src, f.name, target_for(src, targets))
         except QdError as e:
             text = Diagnostics(f.name, src).format_error(e)
             if expect in text:
@@ -100,6 +124,9 @@ def main() -> int:
     print('sequencing')
     from . import test_sequencing
     failures += test_sequencing.main()
+    print('placement')
+    from . import test_placement
+    failures += test_placement.main()
     print('PASS' if not failures else f'{failures} FAILURE(S)')
     return 1 if failures else 0
 

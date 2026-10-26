@@ -95,6 +95,23 @@ class QubitDecl:
 
 
 @dataclass
+class Placement:         # Q0 on board0.core0, Q1.qdrv on board0.qubit.core1
+    qubit: str
+    channel: str | None          # None: every channel of the qubit
+    board: str
+    core: str                    # 'coreN'
+    core_type: str | None
+    pos: Pos
+    target_pos: Pos
+
+
+@dataclass
+class PlaceDecl:
+    placements: list[Placement]
+    pos: Pos
+
+
+@dataclass
 class ConstDecl:
     name: str
     type: str | None
@@ -205,6 +222,15 @@ class _ToAST(Transformer):
     # declarations
     def qubit_decl(self, meta, names):
         return QubitDecl([str(n) for n in names], _pos(meta))
+
+    def placement(self, meta, c):
+        qubit, channel, board, b, cc = c
+        core, core_type = (str(cc), str(b)) if cc is not None else (str(b), None)
+        return Placement(str(qubit), str(channel) if channel is not None else None, str(board), core,
+                         core_type, _pos(meta), _pos(board))
+
+    def place_decl(self, meta, placements):
+        return PlaceDecl(placements, _pos(meta))
 
     def type(self, meta, children):
         return str(children[0])

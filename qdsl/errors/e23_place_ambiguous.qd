@@ -1,0 +1,5 @@
+// expect: board0.core0 is ambiguous
+// compile with --channels qdsl/tests/configs/core_types.json
+qubit Q0;
+place Q0 on board0.core0;
+X90(Q0);

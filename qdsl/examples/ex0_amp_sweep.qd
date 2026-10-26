@@ -1,5 +1,6 @@
 // The original amplitude sweep, in QD.
 qubit Q0;
+place Q0 on board0.core0;
 
 WAIT : time : 500 us;          // constant: baked into the instruction stream
 STEP :: 0.1;

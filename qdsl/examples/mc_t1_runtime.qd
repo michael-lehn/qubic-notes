@@ -1,6 +1,7 @@
 // T1 sweep on two qubits at once with a runtime delay: delay(tau) shifts the
 // clock of every core by the same amount, so the cores stay aligned.
 qubit Q0, Q1;
+place Q0 on board0.core0, Q1 on board0.core1;
 REP :: 100 us;
 tau : time = 0 us;
 n := 0;

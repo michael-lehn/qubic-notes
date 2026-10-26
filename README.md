@@ -84,7 +84,7 @@ machine code, with strict `;` sequencing across processor cores, explicit
 
 ```sh
 python -m qdsl qdsl/examples/ex7_two_qubits.qd   # static schedule
-python -m qdsl.run_tests                          # 17 examples, 19 errors, core + sequencing tests
+python -m qdsl.run_tests                          # 19 examples, 23 errors, core, sequencing, placement tests
 rtl/qd_tb/run_demo.sh                             # QD -> machine code -> RTL
 python rtl/multi_tb/run_multi.py                  # multi-core + shots on RTL
 python rtl/multi_tb/run_seq.py                    # source order vs physical pulse order on RTL
@@ -103,18 +103,184 @@ QD is a v0 prototype. **Implemented** is what `qdsl/README.md` describes:
   and `parallel { A | B }` with a join;
 - runtime delays via the patched compiler;
 - mapping to physical processor cores from the channel configuration;
+- `place` declarations, checked against that mapping (see "Channels, cores and
+  placement");
 - the listed static checks.
 
 The tests cover these: `python -m qdsl.run_tests` (examples, error cases, core
 and sequencing tests) and the RTL runs above.
 
 **Not implemented** (planned or open):
-- the items under "Not yet" in `qdsl/README.md`;
+- the items under "Not yet" in `qdsl/README.md`, among them a `place` that
+  chooses a wiring instead of checking it;
 - runtime synchronization between cores;
 - synchronized physical-time counters and a `now()` expression;
 - automatic static bounds for loops.
 
 These are design proposals, marked as such below.
+
+## Channels, cores and placement
+
+### Three channels per qubit
+
+Each qubit is controlled through three **channels**. A channel is one signal
+generator (an *element*) of a processor core:
+
+| Channel | Name | Element type | What it does |
+|---|---|---|---|
+| `Q0.qdrv` | Qubit Drive | `rf` | generates the control pulses that manipulate the qubit, e.g. the 24 ns pulse of `X90` |
+| `Q0.rdrv` | Readout Drive | `rf` | generates the excitation pulse for the qubit's readout resonator |
+| `Q0.rdlo` | Readout Local Oscillator | `rf_mix` | provides the digital reference that demodulates and integrates the received readout signal into one result |
+
+A gate uses the drive channel. A measurement coordinates the two readout
+channels: the readout drive excites the resonator, and the local oscillator
+integrates the returning signal over a window that starts when the response
+arrives.
+
+```odin
+qubit Q0;
+place Q0 on board0.core0;
+
+X90(Q0);            // a gate: one pulse on Q0.qdrv
+m := measure(Q0);   // a measurement: Q0.rdrv and Q0.rdlo together
+```
+
+**[compiler output]** (`python -m qdsl FILE`, clocks of 2 ns):
+
+```
+   start      [us]  channel     len  source     block
+       5     0.010  Q0.qdrv      12  Q0X90      block_0
+      17     0.034  Q0.rdrv    1000  Q0read     block_0
+     317     0.634  Q0.rdlo    1000  Q0read     block_0
+    1381     2.762  idle          0  wait for measurement block_0
+```
+
+`X90` is one 12-clock pulse on `Q0.qdrv`. `measure` drives the resonator on
+`Q0.rdrv` for 1000 clocks (2 µs) and opens the 1000-clock demodulation window
+on `Q0.rdlo` 300 clocks later. The core then idles until the result is
+latched in FPROC and copies it into `m`.
+
+The pulse shapes, frequencies and timings come from the calibration file
+`qubitcfg.json` (`--qchip`): `X90` and `read` are entries there.
+
+### Processor cores and analog hardware
+
+A **processor core** is a small in-order processor. It runs its own program
+from its own instruction memory and triggers its elements at timestamps (see
+"The machine in one paragraph" below). It does not produce analog signals
+itself.
+
+The **analog inputs and outputs** are the converters of the RF board, and the
+gateware build fixes which element feeds which converter. In the vendored
+ZCU216 build (`gateware/top/zcu216_14_2/dsp_config.yaml`), every `qubit` core
+has one `qdrv`, one `rdrv` and one `rdlo` element. `qdrv` of core *i* drives
+DAC *i*. The `rdrv` elements of cores 0-6 are summed onto DAC 14, those of
+cores 7-13 onto DAC 15. The `rdlo` elements of cores 0-6 mix ADC input 0, those
+of cores 7-13 ADC input 1. Several cores therefore share one analog output or
+input.
+
+The **channel configuration** (`--channels`, default
+`vendor/software/examples/channel_config.json`) names the channels and assigns
+each one to a core (`board_name`, `core_name`, `core_ind`) and an element on
+it (`elem_ind`). That assignment is the wiring: it decides which core's
+program controls which element. QD reads it (`qdsl/cores.py`) and does not
+change it. In the vendored configuration, Q*n*'s three channels are elements
+0, 1, 2 of core *n*. Other configurations put several qubits on one core, or
+one qubit's channels on several cores (`qdsl/tests/configs/`).
+
+### Placement
+
+A `place` declaration states which core each channel of a qubit is on:
+
+```odin
+qubit Q0, Q1;
+place Q0 on board0.core0;
+
+place Q0.qdrv on board0.core0,      // the same, channel by channel
+      Q0.rdrv on board0.core0,
+      Q0.rdlo on board0.core0;
+
+X90(Q0);
+```
+
+`place Q0 on C;` places all of Q0's channels on `C`. The comma-separated form
+is one statement. `board0.coreN` is the core with `core_ind` N on the unnamed
+board; a named board is written by its `board_name`, and `BOARD.TYPE.coreN`
+names the core type where needed (`qdsl/README.md`, "Placement").
+
+**What `place` means (implemented).** The channel configuration fixes the
+wiring, so `place` is a **requirement checked at compile time**, not a runtime
+operation and not a way to rewire. The compiler rejects unknown qubits,
+channels, boards and cores, contradictory placements, and every placement that
+the channel configuration does not have. The diagnostic shows the actual
+wiring (**[compiler output]**, `python -m qdsl qdsl/errors/e22_place_wiring.qd`):
+
+```
+qdsl/errors/e22_place_wiring.qd:5:27: error: cannot place Q1 on board0.core0: the channel configuration (vendor/software/examples/channel_config.json) wires Q1.qdrv to board0.core1, Q1.rdrv to board0.core1, Q1.rdlo to board0.core1
+    place Q0 on board0.core0, Q1 on board0.core0;
+                              ^
+  hint: place states where a channel is wired; it cannot rewire it. Write
+          place Q1 on board0.core1;
+        or compile with a channel configuration that has the wiring you want (--channels)
+```
+
+A program compiles to the same machine words with or without its placements.
+Placements make the hardware assumption of a program explicit, and they
+fail the build when the program is compiled for different hardware.
+`qubitcfg.json` plays no part: it holds calibrations, not wiring.
+
+**1. All three channels of Q0 on one core** (vendored configuration):
+
+```odin
+qubit Q0;
+place Q0 on board0.core0;
+X90(Q0);
+measure(Q0);
+```
+
+**2. Q1's channels distributed over two cores**
+(`qdsl/tests/configs/spread_qubit.json`; the same file puts Q2 on three cores):
+
+```odin
+// compile with --channels qdsl/tests/configs/spread_qubit.json
+qubit Q0, Q1, Q2;
+place Q0 on board0.core0;
+place Q1.qdrv on board0.core1,
+      Q1.rdrv on board0.core2,
+      Q1.rdlo on board0.core2;
+place Q2.qdrv on board0.core3,
+      Q2.rdrv on board0.core4,
+      Q2.rdlo on board0.core5;
+
+X90(Q1);            // core 1
+measure(Q1);        // core 2, after the X90 has ended (sequential ';' across cores)
+```
+
+**3. Channels of different qubits sharing one core**
+(`qdsl/tests/configs/shared_core.json`: `Q1.qdrv` is element 3 of Q0's core):
+
+```odin
+// compile with --channels qdsl/tests/configs/shared_core.json
+qubit Q0, Q1;
+place Q0 on board0.core0,
+      Q1.qdrv on board0.core0;
+
+parallel {
+    X90(Q0);
+|
+    X90(Q1);        // one core: issued after X90(Q0), 3 clocks later
+}
+```
+
+Examples written for another configuration name it in a
+`// compile with --channels PATH` comment; the test runner and
+`tools/check_doc_dsl.py` compile them with it. `qdsl/examples/place_spread_qubit.qd`
+and `qdsl/examples/place_shared_core.qd` are the executable versions.
+
+**Not implemented.** A `place` that *chooses* a wiring (letting the compiler
+or a generated channel configuration follow the program) is not part of QD.
+The current hardware path cannot use one: the wiring is a property of the
+channel configuration and the gateware build.
 
 ## Execution model: sequential and parallel programs
 
@@ -187,6 +353,7 @@ different cores are ordered **only by their timestamps**. (Paths under `hdl/`,
 
 ```odin
 qubit Q0, Q1, Q2;
+place Q0 on board0.core0, Q1 on board0.core1, Q2 on board0.core2;
 
 parallel {
     X90(Q0);
@@ -198,13 +365,13 @@ X90(Q2);    // starts after both branches have finished
 ```
 
 Physical mapping, from the vendored `software/examples/channel_config.json` as
-derived by `qdsl/cores.py`:
+derived by `qdsl/cores.py`; the `place` line states it:
 
-| Qubit | Channels (`elem_ind`) | Physical core | Instruction memory |
+| Qubit | Channels (`elem_ind`) | Physical core (QD name, `CoreId`) | Instruction memory |
 |---|---|---|---|
-| Q0 | `Q0.qdrv` (0), `Q0.rdrv` (1), `Q0.rdlo` (2) | `qubit/0` | `qubit_command0` |
-| Q1 | `Q1.qdrv` (0), `Q1.rdrv` (1), `Q1.rdlo` (2) | `qubit/1` | `qubit_command1` |
-| Q2 | `Q2.qdrv` (0), `Q2.rdrv` (1), `Q2.rdlo` (2) | `qubit/2` | `qubit_command2` |
+| Q0 | `Q0.qdrv` (0), `Q0.rdrv` (1), `Q0.rdlo` (2) | `board0.core0`, `qubit/0` | `qubit_command0` |
+| Q1 | `Q1.qdrv` (0), `Q1.rdrv` (1), `Q1.rdlo` (2) | `board0.core1`, `qubit/1` | `qubit_command1` |
+| Q2 | `Q2.qdrv` (0), `Q2.rdrv` (1), `Q2.rdlo` (2) | `board0.core2`, `qubit/2` | `qubit_command2` |
 
 **[compiler output]**:
 
@@ -238,7 +405,8 @@ distinct cores both branches start at the barrier before the block; that is a
 property of the schedule, not a promise of `parallel`.
 
 When the qubits share a core (`qdsl/tests/configs/one_core.json`, all three on
-`qubit/0`), the core issues the branches in turn: `X90(Q0)` at t = 5,
+`qubit/0`; the program then states `place Q0 on board0.core0, Q1 on
+board0.core0, Q2 on board0.core0;`), the core issues the branches in turn: `X90(Q0)` at t = 5,
 `X90(Q1)` at t = 8 (pulses on one core are ≥ 3 clocks apart), and `X90(Q2)` at
 t = 20, after both have ended. *RTL* (`run_seq.py`): `par_three_cores`,
 `par_one_core`, and `par_pair_core` (Q0 and Q1 share a core, Q2 has its own).
@@ -251,6 +419,7 @@ runtime (1, 2, …, or unbounded):
 
 ```odin
 qubit Q0, Q1;
+place Q0 on board0.core0, Q1 on board0.core1;   // Case B (vendored configuration)
 m := 1;                  // int register
 do {
     X90(Q0);
@@ -268,7 +437,21 @@ a core whose `qclk` was rewound in every iteration, and only there.
 #### Case A: Q0 and Q1 share one core
 
 With `qdsl/tests/configs/shared_core.json`, `Q1.qdrv` is element 3 of core
-`qubit/0`. **[compiler output]** (`--channels qdsl/tests/configs/shared_core.json`):
+`qubit/0`, and the program states that placement:
+
+```odin
+// compile with --channels qdsl/tests/configs/shared_core.json
+qubit Q0, Q1;
+place Q0 on board0.core0, Q1.qdrv on board0.core0;
+m := 1;
+do {
+    X90(Q0);
+    m = measure(Q0);
+} while m == 1;
+X90(Q1);
+```
+
+**[compiler output]** (`--channels qdsl/tests/configs/shared_core.json`):
 
 ```
 qubit_command0
@@ -440,6 +623,7 @@ Assumptions and limits, each enforced or checked:
 
 ```odin
 qubit Q0, Q1, Q2;
+place Q0 on board0.core0, Q1 on board0.core1, Q2 on board0.core2;
 m0 := 1;
 m1 := 1;
 parallel {
@@ -457,7 +641,7 @@ first loop, at the wrong time. **Rejected**:
 
 ```
 error: cannot guarantee the order of the loop: processor cores qubit/2 and qubit/1 both
-take part, but only qubit/2 has run the runtime loop at line 8 before; qubit/2 takes part
+take part, but only qubit/2 has run the runtime loop at line 9 before; qubit/2 takes part
 because Q2 must wait for it
 ```
 

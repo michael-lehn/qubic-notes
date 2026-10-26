@@ -1,5 +1,6 @@
 // Active reset: if the qubit reads 1, flip it with two X90s, then check.
 qubit Q0;
+place Q0 on board0.core0;
 if measure(Q0) == 1 {
     X90(Q0);
     X90(Q0);

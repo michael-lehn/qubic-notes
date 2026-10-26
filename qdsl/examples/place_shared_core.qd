@@ -1,0 +1,13 @@
+// Two logical qubits on one processor core: Q1's drive is element 3 of the core
+// that also drives and reads out Q0.
+// compile with --channels qdsl/tests/configs/shared_core.json
+qubit Q0, Q1;
+place Q0 on board0.core0,
+      Q1.qdrv on board0.core0;
+
+parallel {
+    X90(Q0);
+|
+    X90(Q1);        // same core: issued after X90(Q0), not at the same time
+}
+measure(Q0);

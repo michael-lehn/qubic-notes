@@ -1,0 +1,6 @@
+// expect: cannot place Q1 on board0.core0: the channel configuration
+// Q0 and Q1 are on different cores in the vendored configuration; place cannot
+// move Q1 onto Q0's core.
+qubit Q0, Q1;
+place Q0 on board0.core0, Q1 on board0.core0;
+X90(Q0); X90(Q1);

@@ -1,5 +1,6 @@
 // T1 sweep with a runtime delay: one loop instead of an unrolled program.
 qubit Q0;
+place Q0 on board0.core0;
 REP :: 100 us;
 
 tau : time = 0 us;              // register, in clock ticks

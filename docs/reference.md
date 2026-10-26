@@ -131,6 +131,7 @@ The same program in QD; it compiles to exactly the same 9 machine words (Example
 
 ```odin
 qubit Q0;
+place Q0 on board0.core0;
 a : amp = 0.1;
 
 do {
@@ -229,6 +230,7 @@ sweep compiles to exactly the same 9 machine words as the hand-written IR. Code:
 
 ```odin
 qubit Q0, Q1, Q2;
+place Q0 on board0.core0, Q1 on board0.core1, Q2 on board0.core2;
 REP :: 100 us;                  // constant   name : type : value  or  name :: value
 tau : time = 0 us;              // register   name : type = value   (int, amp, phase, time)
 n := 0;
@@ -250,6 +252,7 @@ parallel { measure(Q1); | measure(Q2); }    // independent branches, then a join
 
 | Construct | Meaning | QubiC-IR |
 | --- | --- | --- |
+| `place Q0 on board0.core0;`, `place Q1.qdrv on board0.core1, Q1.rdlo on board0.core1;` | declares which processor core each channel is wired to; checked against the channel configuration, which fixes the wiring | nothing: the IR's qubit → channel → core mapping comes from the channel configuration (`qdsl/README.md`, "Placement") |
 | `X90(Q0); X90(Q1);` | every quantum operation of the first statement has completed before any of the second begins, on every core | `barrier(Q0, Q1)` between them: the union of both statements' qubits; after a runtime loop the later cores also run the loop's control flow |
 | `parallel { X90(Q0); \| X90(Q1); }` | independent branches that may overlap (no common start promised); the end is a join | barriers before and after; branches must use disjoint qubits and must not share a register that one of them writes |
 | `T1 : time : 10 us;` / `a : amp = 0.1;` | compile-time constant / register | folded immediates / `declare` + `set_var` |
@@ -364,7 +367,7 @@ line is a complete QD program; compiling it reproduces the machine words shown
 ### Example 1 — integer variable
 
 ```
-QD   qubit Q0; x : int = 42;
+QD   qubit Q0; place Q0 on board0.core0; x : int = 42;
 IR   {'name':'declare','var':'x','scope':['Q0'],'dtype':'int'}, {'name':'set_var','var':'x','value':42}
 ASM  phase_reset; declare_reg x:int; reg_alu in0=42 id0 in1=x out=x; done_stb
 @0 b0000000000000000000000000000000  pulse_reset
@@ -378,7 +381,7 @@ equal to the target (`compiler.py:251-254`).
 ### Example 2 — add two variables
 
 ```
-QD   qubit Q0; a : int = 3; b : int = 4; c := a + b;
+QD   qubit Q0; place Q0 on board0.core0; a : int = 3; b : int = 4; c := a + b;
 IR   declare a,b,c; set_var a=3; set_var b=4; {'name':'alu','op':'add','lhs':'a','rhs':'b','out':'c'}
 @1 10000000030000000000000000000000  reg_alu_i  alu=id0 in0=#3 in1=r0 out=r0
 @2 10000000041100000000000000000000  reg_alu_i  alu=id0 in0=#4 in1=r1 out=r1
@@ -390,7 +393,7 @@ Registers follow declaration order (`assembler.py:207-216`).
 ### Example 3 — counter loop
 
 ```
-QD   qubit Q0; i : int = 0; do { X90(Q0); i += 1; } while i < 5;
+QD   qubit Q0; place Q0 on board0.core0; i : int = 0; do { X90(Q0); i += 1; } while i < 5;
 IR   declare i; set_var i=0; {'name':'loop','cond_lhs':5,'alu_cond':'ge','cond_rhs':'i','scope':['Q0'],
        'body':[{'name':'X90','qubit':['Q0']}, {'name':'alu','op':'add','lhs':1,'rhs':'i','out':'i'}]}
 @1 10000000000000000000000000000000  reg_alu_i   alu=id0 in0=#0 in1=r0 out=r0
@@ -407,7 +410,7 @@ calibration database.
 ### Example 4 — shaped pulse
 
 ```
-QD   qubit Q0;
+QD   qubit Q0; place Q0 on board0.core0;
      pulse(Q0.qdrv, freq = Q0.freq, phase = pi / 2, amp = 0.5, width = 32 ns,
            env = cos_edge_square(0.25));
 IR   {'name':'pulse','dest':'Q0.qdrv','freq':'Q0.freq','phase':1.5708,'amp':0.5,'twidth':32e-9,
@@ -422,7 +425,7 @@ IR   {'name':'pulse','dest':'Q0.qdrv','freq':'Q0.freq','phase':1.5708,'amp':0.5,
 ### Example 5 — measurement
 
 ```
-QD   qubit Q0; measure(Q0);
+QD   qubit Q0; place Q0 on board0.core0; measure(Q0);
 IR   {'name':'read','qubit':['Q0']}
 @1 9008fa0002000040080a1220000000a0  pulse_write_trig t=5   cfg=1 amp=644   phase=0     env_word=4096000  (Q0.rdrv, 2 µs drive)
 @2 9008fa00023c53c009fffec000002620  pulse_write_trig t=305 cfg=6 amp=32767 phase=30887 env_word=4096000  (Q0.rdlo, demod window)
@@ -436,7 +439,7 @@ instruction returns a value.
 ### Example 6 — branch on a measurement
 
 ```
-QD   qubit Q0; if measure(Q0) == 1 { X90(Q0); X90(Q0); } measure(Q0);
+QD   qubit Q0; place Q0 on board0.core0; if measure(Q0) == 1 { X90(Q0); X90(Q0); } measure(Q0);
 IR   read; {'name':'branch_fproc','cond_lhs':1,'alu_cond':'eq','func_id':'Q0.meas','scope':['Q0'],
             'true':[X90, X90], 'false':[]}; read
 @1  9008fa0002000040080a1220000000a0  pulse_write_trig t=5    (rdrv)
@@ -456,7 +459,7 @@ IR   read; {'name':'branch_fproc','cond_lhs':1,'alu_cond':'eq','func_id':'Q0.mea
 ### Example 7 — two qubits
 
 ```
-QD   qubit Q1, Q2;
+QD   qubit Q1, Q2; place Q1 on board0.core1, Q2 on board0.core2;
      parallel { X90(Q1); | X90(Q2); }
      CNOT(Q2, Q1);
      parallel { measure(Q1); | measure(Q2); }

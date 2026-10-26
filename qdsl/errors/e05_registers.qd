@@ -1,5 +1,6 @@
 // expect: needs 17 registers
 qubit Q0;
+place Q0 on board0.core0;
 r0 : int = 0;
 r1 : int = 1;
 r2 : int = 2;

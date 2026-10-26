@@ -1,0 +1,5 @@
+// expect: conflicting placement of 'Q0.rdlo': board0.core1 here, board0.core0 at line 3
+qubit Q0;
+place Q0 on board0.core0;
+place Q0.rdlo on board0.core1;
+X90(Q0);

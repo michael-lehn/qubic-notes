@@ -1,3 +1,4 @@
 // expect: unknown gate 'X9O'
 qubit Q0;
+place Q0 on board0.core0;
 X9O(Q0);

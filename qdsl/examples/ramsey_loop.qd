@@ -1,5 +1,6 @@
 // Ramsey-style loop on an int counter, with a register phase for the second pulse.
 qubit Q0;
+place Q0 on board0.core0;
 ph : phase = 0;
 n := 0;
 

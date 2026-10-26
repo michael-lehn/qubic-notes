@@ -13,7 +13,7 @@ import distproc.hwconfig as dhw
 import qubitconfig.qchip as qc
 import qubitconfig.envelope_pulse as envelope_pulse
 
-from .cores import ConfigError, CoreId, CoreModel  # noqa: F401  (re-exported)
+from .cores import ConfigError, CoreId, CoreModel, PlacementError  # noqa: F401  (re-exported)
 
 QUBIC_ROOT = os.environ.get('QUBIC_ROOT', str(Path(__file__).resolve().parents[1] / 'vendor'))
 DEFAULT_QCHIP = f'{QUBIC_ROOT}/software/examples/qubitcfg.json'

@@ -60,6 +60,22 @@ Q0_ALL = ['Q0.qdrv', 'Q0.rdrv', 'Q0.rdlo']
 
 PAR3 = 'qubit Q0, Q1, Q2;\nparallel {\n    X90(Q0);\n|\n    X90(Q1);\n}\nX90(Q2);\n'
 
+# The wiring of each configuration, as `place` states it. compile_case adds the placements
+# of the qubits a case declares, so every program states the cores it is compiled for.
+PLACE = {
+    None:          {'Q0': 'board0.core0', 'Q1': 'board0.core1', 'Q2': 'board0.core2'},
+    'shared_core': {'Q0': 'board0.core0', 'Q1': 'board0.core0'},
+    'one_core':    {'Q0': 'board0.core0', 'Q1': 'board0.core0', 'Q2': 'board0.core0'},
+    'pair_core':   {'Q0': 'board0.core0', 'Q1': 'board0.core0', 'Q2': 'board0.core1'},
+}
+
+
+def placed(src: str, config: str | None) -> str:
+    decl, rest = src.split(';', 1)                       # every case starts with  qubit ...;
+    qubits = [q.strip() for q in decl.removeprefix('qubit').split(',')]
+    return f'{decl};\nplace ' + ', '.join(f'{q} on {PLACE[config][q]}' for q in qubits) + ';' + rest
+
+
 CASES = [
     # a runtime loop, then another qubit
     Case('loop_meas_two_cores', LOOP_MEAS, [(Q0_ALL, ['Q1.qdrv'])], '0:1,1,0',
@@ -101,7 +117,7 @@ CASES = [
 
 def compile_case(c: Case):
     t = Target() if c.config is None else Target(channels_path=str(CONFIGS / f'{c.config}.json'))
-    ir, _ = front_end(c.src, f'{c.name}.qd', t)
+    ir, _ = front_end(placed(c.src, c.config), f'{c.name}.qd', t)
     b = backend.build(ir, t)
     BUILD.mkdir(exist_ok=True)
     out = BUILD / f'seq_{c.name}.json'

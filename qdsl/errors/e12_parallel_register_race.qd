@@ -1,5 +1,6 @@
 // expect: both use register 'n', and branch 1 writes it
 qubit Q1, Q2;
+place Q1 on board0.core1, Q2 on board0.core2;
 n : int = 0;
 parallel {
     X90(Q1); n += 1;

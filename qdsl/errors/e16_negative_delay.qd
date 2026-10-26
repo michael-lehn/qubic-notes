@@ -1,5 +1,6 @@
 // expect: runtime delay 'tau' may become negative
 qubit Q0;
+place Q0 on board0.core0;
 tau : time = 10 us;
 tau -= 20 us;
 delay(tau);
