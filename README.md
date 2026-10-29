@@ -764,6 +764,10 @@ In particular, sequential execution must preserve the intended ordering even whe
 
 I defined these technical goals and directed the development of QD, a prototype language for quantum control. Claude assisted with design discussions, investigating implementation constraints, writing compiler and simulation code according to my specifications, and developing tests and documentation.
 
+I believe AI coding assistants are extremely powerful and useful tools, capable of handling increasingly sophisticated software engineering tasks. Nevertheless, I remain conservative about delegating the implementation of compiler internals to AI, particularly in mature projects where correctness, maintainability, and a detailed understanding of the generated code are essential.
+
+QD is a different case. It is an experimental prototype, and its syntax, translation to assembly, and current optimization requirements are relatively straightforward. The difficult part is not implementing the compiler itself, but defining an execution model whose semantics can be faithfully realized on the target hardware. This makes the project well suited to AI-assisted implementation while I concentrate on the underlying architectural and semantic questions.
+
 I approach this collaboration much as I would working with a student research assistant: I define the problems, delegate implementation and investigation tasks, review the results, and decide how to proceed.
 
 I do not delegate technical work whose results I cannot understand or evaluate. AI assistance accelerates the investigation and implementation, but I remain responsible for the engineering decisions and for distinguishing verified functionality from proposals and open questions.
