@@ -753,3 +753,17 @@ easier, but it does not replace them.
 | A core that must follow two concurrent runtime loops (parallel branches) | **rejected** | sequential loops, `#unroll` | rendezvous (C): gateware sync controller + toolchain |
 | A replica that cannot read the loop's measurement (other board) | **rejected** | — | cross-board result sharing |
 | Monotonic synchronized counter, `now()` | no | — | yes |
+
+## Use of AI-assisted development
+
+This project was developed with substantial assistance from Claude.
+
+I initiated the investigation of QubiC's compiler, instruction set, and execution model. The central challenge was to design a domain-specific language (DSL) that expresses sequential and parallel execution in a natural and transparent way, while ensuring that these semantics can actually be implemented on QubiC's architecture of independently executing processor cores.
+
+In particular, sequential execution must preserve the intended ordering even when operations involve different cores, while parallel execution must allow independent operations to overlap without introducing unintended synchronization. Understanding the hardware's scheduling and synchronization capabilities, and identifying where the existing architecture imposes limitations, are essential parts of this investigation.
+
+I defined these technical goals and directed the development of QD, a prototype language for quantum control. Claude assisted with design discussions, investigating implementation constraints, writing compiler and simulation code according to my specifications, and developing tests and documentation.
+
+I approach this collaboration much as I would working with a student research assistant: I define the problems, delegate implementation and investigation tasks, review the results, and decide how to proceed.
+
+I do not delegate technical work whose results I cannot understand or evaluate. AI assistance accelerates the investigation and implementation, but I remain responsible for the engineering decisions and for distinguishing verified functionality from proposals and open questions.
